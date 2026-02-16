@@ -5,7 +5,7 @@ import pandas as pd
 # working for only one folder at a time
 # delete any data besides target csv from folder before running
 # delete input csv after run and work with new files
-csv_path = './data/testing'
+csv_path = './data/training'
 input_list = os.listdir(csv_path)
 print(input_list)
 for file in input_list:
