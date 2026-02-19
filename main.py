@@ -364,9 +364,75 @@ def workflow_step_wise_unsupervised_inference():
     )
 
 
+def example_concatenating_csv_files():
+
+    import os
+    import numpy as np
+    import pandas as pd
+
+    # --- Create example CSV files ---
+
+    # Create directory to save example files into
+    data_path = './data/example_csv'
+    os.makedirs(data_path, exist_ok=True)
+
+    # 5 gated populations
+    population_names = ['others', 'blasts', 'laip1', 'laip2']
+
+    # 3 channels + sample ID
+    num_channels = 3
+    channel_names = [f'C_{i}' for i in range(num_channels)] + ['sample_id']
+
+    # Iterate over populations and create example data
+    for population_name in population_names:
+
+        # Generate random data matrix
+        n_events = 10
+        x_data = np.random.normal(size=(n_events, num_channels), loc=0, scale=1).round(decimals=4)
+
+        # Generate random sample IDs between 1 and 6
+        x_sample_id = np.random.randint(low=1, high=6, size=n_events)
+
+        # Add sample ID as column to data matrix
+        x_sample_id = x_sample_id.reshape(-1, 1)
+        x_data_concat = np.concatenate((x_data, x_sample_id), axis=1)
+
+        # Create DataFrame with channel names as column names
+        data_df = pd.DataFrame(x_data_concat, columns=channel_names)
+
+        # Save
+        data_df.to_csv(os.path.join(data_path, f'{population_name}.csv'), index=False)
 
 
+    # --- Concatenate CSVs into one file and add population labels ---
 
+    filenames = ['others.csv', 'blasts.csv', 'laip1.csv', 'laip2.csv']
+    data_dfs = []
+    meta_data = []
+    for i, filename in enumerate(filenames):
+
+        # Load the CSV file
+        data_df = pd.read_csv(os.path.join(data_path, filename))
+
+        # Add a columns with an integer label encoding the population
+        data_df['label'] = i
+
+        # Add dataframe to list
+        data_dfs.append(data_df)
+
+        # Save information which population is encoded by which integer
+        meta_data.append({
+            'filename': filename,
+            'integer_label': i
+        })
+
+    # Concatenate the DataFrames and save again
+    data_df_concat = pd.concat(data_dfs, axis=0, ignore_index=True)
+    data_df_concat.to_csv(os.path.join(data_path, 'data_concatenated_with_population_labels.csv'), index=False)
+
+    # Generate and save DataFrame with the label information
+    meta_data_df = pd.DataFrame(meta_data)
+    meta_data_df.to_csv(os.path.join(data_path, 'meta_data.csv'), index=False)
 
 
 
@@ -374,9 +440,11 @@ if __name__ == '__main__':
 
     # workflow_pipeline_unsupervised()
 
-    workflow_step_wise_unsupervised_som_training()
+    # workflow_step_wise_unsupervised_som_training()
 
-    workflow_step_wise_unsupervised_inference()
+    # workflow_step_wise_unsupervised_inference()
+
+    example_concatenating_csv_files()
 
     print('done')
 
