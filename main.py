@@ -435,6 +435,132 @@ def example_concatenating_csv_files():
     meta_data_df.to_csv(os.path.join(data_path, 'meta_data.csv'), index=False)
 
 
+def workflow_step_wise_supervised_training():
+    import os
+    import torch
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    from flagx.io import FlowDataManager
+    from flagx.gating import SomClassifier, MLPClassifier
+
+    # --- Define path where results are saved to
+    save_path = './results/workflow_step_wise_supervised_training'
+    save_path_data_handling = './results/workflow_step_wise_supervised_training/data_handling'
+    os.makedirs(save_path_data_handling, exist_ok=True)
+
+    # --- Generate some artificial training data for this example
+    # Define path to training data
+    training_data_path = './data/supervised_example'
+    os.makedirs(training_data_path, exist_ok=True)
+
+    num_channels = 5
+    num_events = 100
+    channel_names = [f'C_{i}' for i in range(num_channels)] + ['label']
+    for i in range(6):
+        # Generate random data matrix
+        x_data = np.random.normal(size=(num_events, num_channels), loc=i, scale=0.01)
+        # Generate random labels between i and i + 2
+        y_label = np.random.randint(low=i, high=i + 2, size=num_events)
+        # Add labels as column to data matrix
+        y_label = y_label.reshape(-1, 1)
+        x_data_concat = np.concatenate((x_data, y_label), axis=1)
+        # Create DataFrame with channel names as column names
+        data_df = pd.DataFrame(x_data_concat, columns=channel_names)
+        # Save
+        data_df.to_csv(os.path.join(training_data_path, f'sample_{i}.csv'), index=False)
+
+    # Get list of files in the data directory (only include ones ending with .csv)
+    training_files = sorted([fn for fn in os.listdir(training_data_path) if fn.endswith('.csv')])
+
+    # --- Data loading and processing
+    # Initialize the data manager
+    fdm = FlowDataManager(
+        data_file_names=training_files,
+        data_file_type=None,  # Is inferred from the filename ending of the 1st file in the 'training_files' list
+        data_file_path=training_data_path,
+        save_path=save_path_data_handling,
+        verbosity=1
+    )
+
+    # Load data into memory
+    # Data samples are now stored not in a Pandas DataFrames, but in a list of AnnData object.
+    # This list is an attribute of the FlowDataManager class and can be accessed via FlowDataManager.anndata_list_.
+    # AnnData is a Python class similar to Pandas DataFrames but with more options and functions for data annotation.
+    # see: https://anndata.readthedocs.io/en/stable/
+    fdm.load_data_files_to_anndata()
+
+    # --- Apply preprocessing transformation to each sample
+    # Apply arcsinh with cofactor 150.
+    # Store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
+    preprocessing_kwargs = {'cofactor': 150}
+    fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
+
+    # --- Downsample each sample to a target number of events
+    # Set target_num_events to 100 for fast model training in this example
+    fdm.sample_wise_downsampling(data_set='all', target_num_events=50)
+
+    # --- Extract concatenated data matrix for model training
+    # Define channels to be used for model training
+    channels = [f'C_{i}' for i in range(num_channels)]
+
+    # Use dataloader with batchsize -1 (= all data) to extract the transformed data matrix and label vector
+    # Note that the data matrix from which we retrieve the labels is the original non-transformed data (label_layer_key='no_trafo').
+    # Otherwise, we would get the arcsinh-transformed labels
+    data_loader = fdm.get_data_loader(
+        data_set='all',
+        channels=channels,
+        label_key='label',
+        label_layer_key='no_trafo',
+        batch_size=-1,
+    )
+    x_train, y_train = next(iter(data_loader))
+
+    TRAIN_SOM = False
+    if TRAIN_SOM:
+        # Instantiate the SOMClassifier, set hyperparameters
+        som_clf = SomClassifier(
+            som_topology='planar',
+            som_grid_type='rectangular',
+            som_dimensions=(3, 3),  # (25, 25)
+            neighborhood='gaussian',
+            gaussian_neighborhood_sigma=0.1,
+            initialization='pca',
+            n_epochs=100,  # 1000,
+            radius_0=-0.25,
+            radius_n=0.1,
+            radius_cooling='exponential',
+            learning_rate_0=0.1,
+            learning_rate_n=0.001,
+            learning_rate_decay='exponential',
+            unlabeled_label=-999,
+            verbosity=2
+        )
+        # Model fitting
+        som_clf.fit(X=x_train, y=y_train)
+        # Save the trained model
+        som_clf.save(filename='som_classifier.pkl', filepath=save_path)
+
+    else:
+        # Instantiate the MLP, set hyperparameters
+        mlp_clf = MLPClassifier(
+            layer_sizes=(128, 64, 32),
+            n_epochs=100,
+            data_loader_params={'batch_size': 128, 'shuffle': True, 'num_workers': 1},
+            device='cuda' if torch.cuda.is_available() else 'cpu',
+            verbosity=2
+        )
+        # Model fitting
+        mlp_clf.fit(X=x_train, y=y_train)
+        # Save the trained model
+        mlp_clf.save(filename='mlp_classifier.pkl', filepath=save_path)
+
+
+def workflow_step_wise_supervised_inference():
+    # Todo
+    pass
+
 
 if __name__ == '__main__':
 
@@ -444,7 +570,9 @@ if __name__ == '__main__':
 
     # workflow_step_wise_unsupervised_inference()
 
-    example_concatenating_csv_files()
+    # example_concatenating_csv_files()
+
+    workflow_step_wise_supervised_training()
 
     print('done')
 
