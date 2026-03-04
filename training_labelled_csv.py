@@ -93,7 +93,7 @@ else:
 
 # --- Downsample each sample to a target number of events
 # Set target_num_events to 1000 for fast model training in this example
-fdm.sample_wise_downsampling(data_set='all', target_num_events=10000)
+fdm.sample_wise_downsampling(data_set='all', target_num_events=1000)
 
 # --- Extract concatenated data matrix for model training
 # Define channels to be used for model training
@@ -148,15 +148,15 @@ tsne_model = TSNE(n_components=2, n_jobs=-1)
 x_tsne = tsne_model.fit_transform(x_train)
 
 # --- UMAP
-print ('computing UMAP...')
-umap_model = UMAP(n_components=2, n_jobs=-1)
-x_umap = umap_model.fit_transform(x_train)
+# print ('computing UMAP...')
+# umap_model = UMAP(n_components=2, n_jobs=-1)
+# x_umap = umap_model.fit_transform(x_train)
 
 # Change back into sample-wise format (input format required by export function)
 x_soms_1 = [x_som[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
 x_soms_2 = [x_som[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
-x_umaps_1 = [x_umap[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
-x_umaps_2 = [x_umap[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
+# x_umaps_1 = [x_umap[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
+# x_umaps_2 = [x_umap[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
 x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 
@@ -167,11 +167,10 @@ export_to_fcs(
     sample_wise=False,  # Export one FCS in which the test samples are concatenated
     add_columns=[
         x_soms_1, x_soms_2,
-        x_umaps_1, x_umaps_2,
         x_tsnes_1, x_tsnes_2
     ],  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
-    add_columns_names=['SOM_1', 'SOM_2', 'UMAP_1', 'UMAP_2', 'TSNE_1', 'TSNE_2'],  # Add names for added columns
-    scale_columns=['SOM_1', 'SOM_2', 'UMAP_1', 'UMAP_2', 'TSNE_1', 'TSNE_2'],  # Select added columns for scaling
+    add_columns_names=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2'],  # Add names for added columns
+    scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2'],  # Select added columns for scaling
     val_range=(0, 2**20),  # Range to which selected columns are scaled to
     save_path=save_path,
     save_filenames='annotated_train_data.fcs'

@@ -7,13 +7,13 @@
 import os
 import pandas as pd
 
-csv_path = './data/testing' # change to training or testing depending on the csv you want to check (also line 17)
+csv_path = './data/training' # change to training or testing depending on the csv you want to check (also line 17)
 csv_out = './results'
 input_list = os.listdir(csv_path)
 print(input_list)
 for file in input_list:
     df = pd.read_csv(os.path.join(csv_path, file), decimal=".", sep=",")
     input_channels = df.columns.tolist()
-    with open(os.path.join(csv_out, 'csv_testing.txt'), 'a') as f:
+    with open(os.path.join(csv_out, 'csv_training.txt'), 'a') as f:
         f.write(file + "\n")
         f.write(str(input_channels) + "\n")
