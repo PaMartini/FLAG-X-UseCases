@@ -1,7 +1,7 @@
 # modified from script for unlabelled csv
-# tested and running 2026-02-22, but: "population" column not properly rescaled for FCS
+# tested and running 2026-03-04
 # read csv, perform training, dim reduction, export fcs and save model
-# Check number and names of channels is consistent across samples (use separate script)
+# before run: Check number and names of channels is consistent across samples (use separate script)
 
 print('loading packages and paths...')
 import os
@@ -170,7 +170,7 @@ export_to_fcs(
         x_tsnes_1, x_tsnes_2
     ],  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
     add_columns_names=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2'],  # Add names for added columns
-    scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2'],  # Select added columns for scaling
+    scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'population'],  # Select added columns for scaling
     val_range=(0, 2**20),  # Range to which selected columns are scaled to
     save_path=save_path,
     save_filenames='annotated_train_data.fcs'

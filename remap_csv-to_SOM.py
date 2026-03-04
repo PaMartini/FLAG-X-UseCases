@@ -1,5 +1,5 @@
-# tested and running 2026-02-15
-# inference from a trained SOM classifier, UMAP and tSNE, export to FCS
+# tested and running 2026-03-04
+# remap data onto a unsupervised trained SOM classifier, UMAP and tSNE, export to FCS
 print ('loading packages and paths...')
 import os
 import numpy as np
