@@ -1,5 +1,6 @@
 # modified from script for unlabelled csv
-# tested and running 2026-03-04
+# tested and running 2026-03-05
+# "shuffle" set to False in data loader, otherwise incorrect export (incorrect training?)
 # read csv, perform training, dim reduction, export fcs and save model
 # before run: Check number and names of channels is consistent across samples (use separate script)
 
@@ -7,10 +8,11 @@ print('loading packages and paths...')
 import os
 import numpy as np
 import pandas as pd
+import torch
 import matplotlib.pyplot as plt
 
 from flagx.io import FlowDataManager, export_to_fcs
-from flagx.gating import SomClassifier
+from flagx.gating import SomClassifier, MLPClassifier
 from flagx.dimred import TSNE, UMAP
 
 # --- Define path where results are saved to
@@ -27,18 +29,6 @@ training_files = sorted([fn for fn in os.listdir(training_data_path) if fn.endsw
 
 # Load the training files into pandas dataframes
 training_data_dfs = [pd.read_csv(os.path.join(training_data_path, fn)) for fn in training_files]
-
-# For each file print the number of channels
-# for fn, data_df in zip(training_files, training_data_dfs):
-#     print(f'# --- {fn}, number of channels: {data_df.shape[1]}')
-
-# print('\n')
-
-# As an additional check, also print the channel names
-# for fn, data_df in zip(training_files, training_data_dfs):
-#    print(f'# --- {fn}:\n{data_df.columns.to_list()}')
-
-#   print('\n')
 
 # --- Data loading and processing
 # Initialize the data manager
@@ -93,7 +83,7 @@ else:
 
 # --- Downsample each sample to a target number of events
 # Set target_num_events to 1000 for fast model training in this example
-fdm.sample_wise_downsampling(data_set='all', target_num_events=1000)
+fdm.sample_wise_downsampling(data_set='all', target_num_events=25000)
 
 # --- Extract concatenated data matrix for model training
 # Define channels to be used for model training
@@ -101,17 +91,32 @@ channels = [
     'FS INT', 'SS INT',
     '15-FITC', '13-PE', '34-ECD', '117-PC5.5', '33-PC7', '2-APC', '7-APC-AF700', 'HLADR-PB', '45-CO'
 ]
+
 # Extract the processed data matrices from the AnnData objects
 data_matrices = [adata[:, channels].X for adata in fdm.anndata_list_]
 # Get number of events per test sample and compute indices at which samples start in the concatenated data matrix
 num_events = [x.shape[0] for x in data_matrices]
 starting_indices = np.cumsum([0, ] + num_events)
+'''
 # Concatenate
 x_train = np.concatenate(data_matrices, axis=0)
 y_train = x_train[:,-1]
 # Shuffle                                (currently not active)
 # idx_shuffle = np.random.permutation(x_train.shape[0])
 # x_train = x_train[idx_shuffle]
+'''
+# Use dataloader with batchsize -1 (= all data) to extract the transformed data matrix and label vector
+# Note that the data matrix from which we retrieve the labels is the original non-transformed data (label_layer_key='no_trafo').
+# Otherwise, we would get the arcsinh-transformed labels
+data_loader = fdm.get_data_loader(
+    data_set='all',
+    channels=channels,
+    label_key='population',
+    label_layer_key='no_trafo',
+    shuffle=False,
+    batch_size=-1,
+)
+x_train, y_train = next(iter(data_loader))
 
 # --- SOM training
 print('training SOM model...')
@@ -119,7 +124,7 @@ print('training SOM model...')
 som_clf = SomClassifier(
     som_topology='planar',
     som_grid_type='rectangular',
-    som_dimensions=(15, 15),  # (25, 25)
+    som_dimensions=(20, 20),  # (25, 25)
     neighborhood='gaussian',
     gaussian_neighborhood_sigma=0.1,
     initialization='pca',
@@ -141,6 +146,19 @@ som_clf.fit(X=x_train, y=y_train)
 som_clf.save(filename='som_classifier.pkl', filepath=save_path)
 
 _, x_som, _, _ = som_clf.transform(x_train)
+
+# Instantiate the MLP, set hyperparameters
+mlp_clf = MLPClassifier(
+    layer_sizes=(128, 64, 32),
+    n_epochs=20,
+    data_loader_params={'batch_size': 128, 'shuffle': True, 'num_workers': 1},
+    device='cuda' if torch.cuda.is_available() else 'cpu',
+    verbosity=2
+)
+# Model fitting
+mlp_clf.fit(X=x_train, y=y_train)
+# Save the trained model
+mlp_clf.save(filename='mlp_classifier.pkl', filepath=save_path)
 
 # --- t-SNE
 print ('computing t-SNE...')

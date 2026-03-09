@@ -1,5 +1,5 @@
-# tested and running 2026-02-16
-# read csv, perform training, dim reduction, exprot fcs and save model
+# SOM training (unsupervised) for samples without population annotation. Tested and running 2026-02-16
+# read csv, perform training, dim reduction, export fcs and save model
 # Check number and names of channels is consistent across samples (use separate script)
 
 print('loading packages and paths...')
