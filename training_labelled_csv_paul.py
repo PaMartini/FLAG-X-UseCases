@@ -1,6 +1,5 @@
-# modified from script for unlabelled csv
-# tested and running 2026-03-05
-# "shuffle" set to False in data loader, otherwise incorrect export (incorrect training?)
+# tested and running 2026-03-12
+# "shuffle" set to False in data loader, but added manually before model training. 
 # read csv, perform training, dim reduction, export fcs and save model
 # before run: Check number and names of channels is consistent across samples (use separate script)
 
@@ -83,7 +82,7 @@ else:
 
 # --- Downsample each sample to a target number of events
 # Set target_num_events to 1000 for fast model training in this example
-fdm.sample_wise_downsampling(data_set='all', target_num_events=25000)
+fdm.sample_wise_downsampling(data_set='all', target_num_events=10000)
 
 # --- Extract concatenated data matrix for model training
 # Define channels to be used for model training
