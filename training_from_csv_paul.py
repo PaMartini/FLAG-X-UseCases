@@ -1,7 +1,7 @@
 # SOM training (unsupervised) for samples without population annotation. Fast tSNE added. Tested and running 2026-03-21
 # shuffle version of the training data used for model fitting. Dimensionality reductions and FCS export based on unshuffled data
 # read csv, perform training, dim reduction, export fcs and save model
-# Check number and names of channels is consistent across samples (use separate script)
+# Before use, check number and names of channels is consistent across samples (use separate script)
 
 import os
 import numpy as np
@@ -24,7 +24,7 @@ trainchannels = [
      '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
 ] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
 # full set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '-APC-AF750', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
-size_per_sample = 30000  # Number of events per sample to be used for model training
+size_per_sample = 60000  # Maximum number of events per sample to be used for model training
 SOM_dim = (25, 25)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 for better resolution
 SOM_epochs = 300 # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
 
