@@ -20,10 +20,10 @@ from openTSNE import TSNE
 
 # --- Define selected Parameters for the workflow ------------------------------------
 trainchannels = [
-    'FS INT', 'SS INT',
+    'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700',
      '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
 ] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
-# full set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '-APC-AF750', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
+# full set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
 size_per_sample = 60000  # Maximum number of events per sample to be used for model training
 SOM_dim = (25, 25)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 for better resolution
 SOM_epochs = 300 # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
@@ -78,14 +78,14 @@ fdm.check_sample_sizes(filename_sample_sizes_df='sample_sizes.csv')
 # Example 1: Apply arcsinh with cofactor 150,
 # Example 2: Apply log transformation with custom cutoffs
 # In both cases, store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
-example_1 = True # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
+example_1 = False # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
 if example_1:
     preprocessing_kwargs = {'cofactor': 150}
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
 else:
     # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
     channel_name_to_cutoff = {
-        'FS INT': 50000, 'SS INT': 10000,
+        'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, 
          '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200,
     } # '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, '-APC-AF750': 200,
     preprocessing_kwargs = {'cutoffs': channel_name_to_cutoff}
@@ -184,7 +184,7 @@ export_to_fcs(
         x_tsnes_1, x_tsnes_2
     ],  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
     add_columns_names=['SOM_1', 'SOM_2',  'TSNE_1', 'TSNE_2'],  # Add names for added columns
-    scale_columns=['SOM_1', 'SOM_2',  'TSNE_1', 'TSNE_2'],  # Select added columns for scaling
+    scale_columns=['SOM_1', 'SOM_2',  'TSNE_1', 'TSNE_2', 'sample_idx'],  # Select added columns for scaling
     val_range=(0, 2**20),  # Range to which selected columns are scaled to
     save_path=save_path,
     save_filenames=f'train_w_SOM_{date_time_str}.fcs'
