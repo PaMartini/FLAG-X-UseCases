@@ -1,7 +1,8 @@
-# SOM training (unsupervised) for samples without population annotation. Fast tSNE added. Tested and running 2026-03-21
+# SOM training (unsupervised) for samples without population annotation. Fast tSNE added. Tested and running 2026-04-27
 # shuffle version of the training data used for model fitting. Dimensionality reductions and FCS export based on unshuffled data
 # read csv, perform training, dim reduction, export fcs and save model
 # Before use, check number and names of channels is consistent across samples (use separate script)
+# check if channels like sample_id are included in the csv and need to be scaled for export (if so, add to 'scale_columns')
 
 import os
 import numpy as np
@@ -11,10 +12,10 @@ from datetime import datetime
 
 print('loading packages and paths...')
 timestart = datetime.now()
-date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
+date_time_str = timestart.strftime("%Y-%m-%d_%Hh%M")
 
 from flagx.io import FlowDataManager, export_to_fcs
-from flagx.gating import SomClassifier
+from flagx.gating import SOMClassifier
 from flagx.dimred import UMAP
 from openTSNE import TSNE
 
@@ -23,10 +24,10 @@ trainchannels = [
     'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700',
      '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
 ] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
-# full set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
-size_per_sample = 60000  # Maximum number of events per sample to be used for model training
-SOM_dim = (25, 25)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 for better resolution
-SOM_epochs = 300 # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
+# full set for AL1: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
+size_per_sample = 80000  # Maximum number of events per sample to be used for model training
+SOM_dim = (30, 30)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
+SOM_epochs = 100 # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
 
 # --- Define path where results are saved to
 save_path = './results/workflow_step_wise_unsupervised_som_training'
@@ -87,7 +88,7 @@ else:
     channel_name_to_cutoff = {
         'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, 
          '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200,
-    } # '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, '-APC-AF750': 200,
+    } #  '-APC-AF750': 200,
     preprocessing_kwargs = {'cutoffs': channel_name_to_cutoff}
     fdm.sample_wise_preprocessing(
         flavour='log10_w_custom_cutoffs', save_raw_to_layer='no_trafo', **preprocessing_kwargs
@@ -118,7 +119,7 @@ timeload = time_b - timestart
 # --- SOM training
 print('training SOM model...')
 # Instantiate the SOMClassifier, set hyperparameters
-som_clf = SomClassifier(
+som_clf = SOMClassifier(
     som_topology='planar',
     som_grid_type='rectangular',
     som_dimensions=SOM_dim,
@@ -184,7 +185,7 @@ export_to_fcs(
         x_tsnes_1, x_tsnes_2
     ],  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
     add_columns_names=['SOM_1', 'SOM_2',  'TSNE_1', 'TSNE_2'],  # Add names for added columns
-    scale_columns=['SOM_1', 'SOM_2',  'TSNE_1', 'TSNE_2', 'sample_idx'],  # Select added columns for scaling
+    scale_columns=['SOM_1', 'SOM_2',  'TSNE_1', 'TSNE_2', 'sample_id'],  # Select added columns for scaling
     val_range=(0, 2**20),  # Range to which selected columns are scaled to
     save_path=save_path,
     save_filenames=f'train_w_SOM_{date_time_str}.fcs'
