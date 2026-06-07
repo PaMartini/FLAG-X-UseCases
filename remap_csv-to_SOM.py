@@ -1,13 +1,14 @@
-# tested and running 2026-03-04
-# remap data onto a unsupervised trained SOM classifier, UMAP and tSNE, export to FCS
+# tested and running 2026-03-04, modified later
+# remap data onto a unsupervised trained SOM classifier, (UMAP and) tSNE, export to FCS
 print ('loading packages and paths...')
 import os
 import numpy as np
 import pandas as pd
 
 from flagx.io import FlowDataManager, export_to_fcs
-from flagx.gating import SomClassifier
-from flagx.dimred import TSNE, UMAP
+from flagx.gating import SOMClassifier
+from flagx.dimred import UMAP
+from openTSNE import TSNE
 
 # --- Define path where results are saved to
 save_path = './results/workflow_step_wise_unsupervised_inference'
@@ -89,27 +90,27 @@ x_test = np.concatenate(data_matrices, axis=0)
 # --- SOM
 # Load the previously trained SOM model
 print ('loading trained SOM model and computing SOM features')
-som_clf = SomClassifier.load(
+som_clf = SOMClassifier.load(
     filename='som_classifier.pkl',
     filepath='./results/workflow_step_wise_unsupervised_som_training'
 )
 _, x_som, _, _ = som_clf.transform(x_test)
 
 # --- UMAP
-print ('computing UMAP')
-umap_model = UMAP(n_components=2, n_jobs=-1)
-x_umap = umap_model.fit_transform(x_test)
+# print ('computing UMAP')
+# umap_model = UMAP(n_components=2, n_jobs=-1)
+# x_umap = umap_model.fit_transform(x_test)
 
 # --- t-SNE
 print ('computing tSNE')
-tsne_model = TSNE(n_components=2, n_jobs=-1)
-x_tsne = tsne_model.fit_transform(x_test)
+tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
+x_tsne = tsne_model.fit(x_test)
 
 # Change back into sample-wise format (input format required by export function)
 x_soms_1 = [x_som[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
 x_soms_2 = [x_som[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
-x_umaps_1 = [x_umap[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
-x_umaps_2 = [x_umap[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
+# x_umaps_1 = [x_umap[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
+# x_umaps_2 = [x_umap[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
 x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 
@@ -121,11 +122,10 @@ export_to_fcs(
     sample_wise=False,  # Export one FCS in which the test samples are concatenated
     add_columns=[
         x_soms_1, x_soms_2,
-        x_umaps_1, x_umaps_2,
         x_tsnes_1, x_tsnes_2
-    ],  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
-    add_columns_names=['SOM_1', 'SOM_2', 'UMAP_1', 'UMAP_2', 'TSNE_1', 'TSNE_2'],  # Add names for added columns
-    scale_columns=['SOM_1', 'SOM_2', 'UMAP_1', 'UMAP_2', 'TSNE_1', 'TSNE_2'],  # Select added columns for scaling
+    ],  # Add columns corresponding to dimensionality reductions, also x_umaps_1, x_umaps_2 possible
+    add_columns_names=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2'],  # added columns, e.g. 'UMAP_1', 'UMAP_2',
+    scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2'],  # Select added columns for scaling
     val_range=(0, 2**20),  # Range to which selected columns are scaled to
     save_path=save_path,
     save_filenames='annotated_test_data.fcs'

@@ -11,7 +11,7 @@ timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 
 from flagx.io import FlowDataManager, export_to_fcs
-from flagx.gating import SomClassifier, MLPClassifier
+from flagx.gating import SOMClassifier, MLPClassifier
 from flagx.dimred import UMAP
 from openTSNE import TSNE
 
@@ -79,7 +79,7 @@ time_b = datetime.now()
 timeload = time_b - timestart
 
 # Load the previously trained models
-som_clf = SomClassifier.load(
+som_clf = SOMClassifier.load(
     filename='som_classifier.pkl',
     filepath='./results/workflow_step_wise_supervised_training'
 )

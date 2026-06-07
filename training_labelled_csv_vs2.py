@@ -15,7 +15,7 @@ timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 
 from flagx.io import FlowDataManager, export_to_fcs
-from flagx.gating import SomClassifier, MLPClassifier
+from flagx.gating import SOMClassifier, MLPClassifier
 from flagx.dimred import UMAP
 from openTSNE import TSNE
 
@@ -134,7 +134,7 @@ timeload = time_b - timestart
 # --- SOM training
 print('training SOM model...')
 # Instantiate the SOMClassifier, set hyperparameters
-som_clf = SomClassifier(
+som_clf = SOMClassifier(
     som_topology='planar',
     som_grid_type='rectangular',
     som_dimensions=SOM_dim,

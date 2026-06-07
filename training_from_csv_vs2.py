@@ -21,12 +21,12 @@ from openTSNE import TSNE
 
 # --- Define selected Parameters for the workflow ------------------------------------
 trainchannels = [
-    'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700',
+     'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700',
      '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
 ] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
 # full set for AL1: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
-size_per_sample = 80000  # Maximum number of events per sample to be used for model training
-SOM_dim = (30, 30)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
+size_per_sample = 10000  # Maximum number of events per sample to be used for model training
+SOM_dim = (20, 20)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
 SOM_epochs = 100 # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
 
 # --- Define path where results are saved to
@@ -79,7 +79,7 @@ fdm.check_sample_sizes(filename_sample_sizes_df='sample_sizes.csv')
 # Example 1: Apply arcsinh with cofactor 150,
 # Example 2: Apply log transformation with custom cutoffs
 # In both cases, store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
-example_1 = False # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
+example_1 = True # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
 if example_1:
     preprocessing_kwargs = {'cofactor': 150}
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
