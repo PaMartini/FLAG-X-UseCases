@@ -1,11 +1,14 @@
 # workflow_step_wise_supervised_inference
 # check that preprocessing and channels are identical to training samples
 # path to pkl trained models is defined in line 84 etc
-# tested and running 2026-04-04
+# TSNE inference included as an option, working, but not very well.
+# tested and running 2026-06-08. "population" (if present) not scaled properly
+
 print('loading scripts and data...')
 import os
 import numpy as np
 from datetime import datetime
+import pickle
 
 timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
@@ -16,11 +19,9 @@ from flagx.dimred import UMAP
 from openTSNE import TSNE
 
 # --- Define selected Parameters for the workflow, identical to training! ---------------------------------
-trainchannels = [
-    'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700',
-     '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
+trainchannels = ['FS INT', 'SS INT', '34-ECD', '117-PC5.5', '45-CO'    
 ] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
-# full set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
+# AL1 full set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
 trafo_ash = False # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
 # set ash cofactor (standard =150) or log cutoffs at line 58 etc (settings identical to training) 
 
@@ -120,7 +121,10 @@ if compute_dim_red:
     # --- t-SNE
     print('compute t-SNE...')
     tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
-    x_tsne = tsne_model.fit(x_test)
+    x_tsne=x_tsne = tsne_model.fit(x_test)
+    # if remapping to previous TSNE, use instead
+    # tsne_old = pickle.load(open('./results/workflow_step_wise_supervised_training/tsne_embedding.pkl', 'rb'))
+    # x_tsne = tsne_old.transform(x_test)
 
     time_d = datetime.now()
     timetsne = time_d - time_c
