@@ -87,7 +87,7 @@ if trafo_ash:
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
 else:
     # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
-     # Note: 'FS INT' and 'SS INT' will be transformed by division by 350000 instead of log
+    # Note optional: 'FS INT' and 'SS INT' will be transformed by division by 350000 instead of log
     channel_name_to_cutoff = {
          '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, 
          '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200
@@ -97,11 +97,11 @@ else:
         flavour='log10_w_custom_cutoffs', save_raw_to_layer='no_trafo', **preprocessing_kwargs
         )
 # Apply division by 350000 transformation to 'FS INT' and 'SS INT' channels
-    for adata in fdm.anndata_list_:
-        if 'FS INT' in adata.var_names:
-            adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 350000
-        if 'SS INT' in adata.var_names:
-            adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 350000
+    # for adata in fdm.anndata_list_:
+    #    if 'FS INT' in adata.var_names:
+    #        adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 350000
+    #   if 'SS INT' in adata.var_names:
+    #        adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 350000
 
 # --- Downsample each sample to a target number of events
 # Set target_num_events to 1000 for fast model training in this example
