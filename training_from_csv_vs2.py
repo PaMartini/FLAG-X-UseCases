@@ -1,14 +1,16 @@
 # SOM training (unsupervised) for samples without population annotation. Fast tSNE added. Tested and running 2026-04-27
 # shuffle version of the training data used for model fitting. Dimensionality reductions and FCS export based on unshuffled data
-# read csv, perform training, dim reduction, export fcs and save model
+# read csv, perform training, dim reduction, export fcs and save models (SOM and optional:  TSNE)
 # Before use, check number and names of channels is consistent across samples (use separate script)
-# check if channels like sample_id are included in the csv and need to be scaled for export (if so, add to 'scale_columns')
+# check if channels like sample_idx (from manual sampling) are included in the csv and need to be scaled for export (if so, add to 'scale_columns')
+# Sample_id channel is added by script to tag the different files
 
 import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
+import pickle
 
 print('loading packages and paths...')
 timestart = datetime.now()
@@ -21,9 +23,8 @@ from openTSNE import TSNE
 
 # --- Define selected Parameters for the workflow ------------------------------------
 trainchannels = [
-     'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700',
-     '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
-] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
+     'FS INT', 'SS INT', '45-CO'] 
+# List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
 # full set for AL1: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
 size_per_sample = 10000  # Maximum number of events per sample to be used for model training
 SOM_dim = (20, 20)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
@@ -85,6 +86,7 @@ if example_1:
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
 else:
     # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
+    # Optional: 'FS INT' and 'SS INT' will be transformed by division by 350000 instead of log
     channel_name_to_cutoff = {
         'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, 
          '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200,
@@ -93,6 +95,13 @@ else:
     fdm.sample_wise_preprocessing(
         flavour='log10_w_custom_cutoffs', save_raw_to_layer='no_trafo', **preprocessing_kwargs
         )
+    
+    # Apply division by 350000 transformation to 'FS INT' and 'SS INT' channels
+    # for adata in fdm.anndata_list_:
+    #  if 'FS INT' in adata.var_names:
+    #       adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 350000
+    #    if 'SS INT' in adata.var_names:
+    #       adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 350000
 
 # --- Downsample each sample to a target number of events
 fdm.sample_wise_downsampling(data_set='all', target_num_events=size_per_sample)
@@ -156,8 +165,8 @@ timesom = time_c - time_b
 # --- t-SNE
 print ('computing t-SNE...')
 tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
-# x_tsne = tsne_model.fit_transform(x_train)
 x_tsne = tsne_model.fit(x_train)
+# pickle.dump(x_tsne, open(os.path.join(save_path, 'tsne_embedding.pkl'), 'wb'))
 
 time_d = datetime.now()
 timeSNE = time_d - time_c
