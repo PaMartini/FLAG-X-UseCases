@@ -13,9 +13,12 @@ timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%Hh%M")
 
 csv_path = './data/training'
-final_channels = ['FS INT', 'SS INT', '15-FITC', '13-PE', '34-ECD', '117-PC5.5', '33-PC7', '2-APC', 
-                  '7-APC-AF700', 'APC-AF750', 'HLADR-PB', '45-CO', 'TIME']
-                  # 'y_test', 'y_pred_tsnd', 'y_pred_base_tsnd', 'y_pred_hcbgnd', 'y_pred_base_hcbgnd', 'sample_id'
+final_channels = ['FS INT', 'SS INT', '15-FITC', '13-PE', '34-ECD', '117-PC5.5', '33-PC7', '2-APC', '7-APC-AF700', 
+                  'APC-AF750', 'HLADR-PB', '45-CO', 'TIME', 'sample_idx', 'population']
+#Imst set: 'FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '14-APC700', '8-PB', '45-CO', 'TIME', 'population'
+#  AL1 Set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '34-ECD', '117-PC5.5', '33-PC7', '2-APC', 
+# '7-APC-AF700', 'APC-AF750', 'HLADR-PB', '45-CO', 'TIME, 
+# 'y_test', 'y_pred_tsnd', 'y_pred_base_tsnd', 'y_pred_hcbgnd', 'y_pred_base_hcbgnd', 'sample_id'
 input_list = os.listdir(csv_path)
 
 for file in input_list:

@@ -11,7 +11,7 @@ from datetime import datetime
 timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 
-csv_path = './data/training' # change to training or testing depending on the csv you want to check (also line 17)
+csv_path = './data/testing' # change to training or testing depending on the csv you want to check (also line 17)
 csv_out = './results'
 input_list = os.listdir(csv_path)
 print(input_list)
