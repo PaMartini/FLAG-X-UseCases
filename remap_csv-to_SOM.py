@@ -1,9 +1,12 @@
 # tested and running 2026-03-04, modified later
 # remap data onto a unsupervised trained SOM classifier, (UMAP and) tSNE, export to FCS
+# Changed 2026-06-08 remap to predefined TSNE, running
+
 print ('loading packages and paths...')
 import os
 import numpy as np
 import pandas as pd
+import pickle
 
 from flagx.io import FlowDataManager, export_to_fcs
 from flagx.gating import SOMClassifier
@@ -71,7 +74,7 @@ else:
 
 # NOTE: typically no downsampling at inference time, do so for faster UMAP and t-SNE computation
 # --- Downsample each sample to a target number of events
-fdm.sample_wise_downsampling(data_set='all', target_num_events=5000)
+fdm.sample_wise_downsampling(data_set='all', target_num_events=10000)
 
 # Define channels that were used for model training
 channels = [
@@ -101,10 +104,15 @@ _, x_som, _, _ = som_clf.transform(x_test)
 # umap_model = UMAP(n_components=2, n_jobs=-1)
 # x_umap = umap_model.fit_transform(x_test)
 
-# --- t-SNE
-print ('computing tSNE')
+# --- t-SNE de novo from new data
+# print ('computing tSNE')
+# tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
+# x_tsne = tsne_model.fit(x_test)
+
+# --- t-SNE remapping from stored embedding
 tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
-x_tsne = tsne_model.fit(x_test)
+tsne_old = pickle.load(open(os.path.join('./results/workflow_step_wise_unsupervised_som_training', 'tsne_embedding.pkl'), 'rb'))
+x_tsne = tsne_old.transform(x_test)
 
 # Change back into sample-wise format (input format required by export function)
 x_soms_1 = [x_som[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
@@ -125,7 +133,7 @@ export_to_fcs(
         x_tsnes_1, x_tsnes_2
     ],  # Add columns corresponding to dimensionality reductions, also x_umaps_1, x_umaps_2 possible
     add_columns_names=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2'],  # added columns, e.g. 'UMAP_1', 'UMAP_2',
-    scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2'],  # Select added columns for scaling
+    scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'sample_id'],  # Select added columns for scaling
     val_range=(0, 2**20),  # Range to which selected columns are scaled to
     save_path=save_path,
     save_filenames='annotated_test_data.fcs'
