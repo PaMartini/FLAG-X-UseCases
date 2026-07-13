@@ -2,6 +2,7 @@
 # "shuffle" set to False in data loader, but added manually before model training. 
 # read csv, perform training, dim reduction, export fcs and save model
 # before run: Check number and names of channels is consistent across samples (use separate script)
+# 2026-06 optional lin transformation for FS INT and SS INT channels 
 
 print('loading packages and paths...')
 import os
