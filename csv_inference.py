@@ -19,7 +19,7 @@ from flagx.dimred import UMAP
 from openTSNE import TSNE
 
 # --- Define selected Parameters for the workflow, identical to training! ---------------------------------
-trainchannels = ['FS INT', 'SS INT', '34-ECD', '117-PC5.5', '45-CO'    
+trainchannels = ['FS INT', 'SS INT', '34-ECD', '117-PC5.5','45-CO'    
 ] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
 # AL1 full set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
 trafo_ash = False # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs

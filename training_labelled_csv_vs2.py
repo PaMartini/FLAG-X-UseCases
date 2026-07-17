@@ -29,7 +29,7 @@ trainchannels = [
 # Imst set: 'FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '14-APC700', '8-PB', '45-CO'
 trafo_ash = False # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
 # set ash cofactor (standard =150) or log cutoffs at line 85 etc
-size_per_sample = 500000 # Maximum number of events per sample to be used for model training
+size_per_sample = 200000 # Maximum number of events per sample to be used for model training
 SOM_dim = (20, 20)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 for better resolution
 SOM_epochs = 100 # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
 
@@ -90,7 +90,7 @@ else:
     # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
     # Note optional: 'FS INT' and 'SS INT' will be transformed by division by 350000 instead of log
     channel_name_to_cutoff = {
-         '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, 
+         'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, 
          '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200
     }
     preprocessing_kwargs = {'cutoffs': channel_name_to_cutoff}
@@ -194,7 +194,7 @@ y_pred_mlp = mlp_clf.predict(x_train)
 time_d = datetime.now()
 timemlp = time_d - time_c
 
-# --- t-SNE training, save embedding
+# --- t-SNE training, save embedding (optional)
 print ('computing t-SNE...')
 tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
 x_tsne = tsne_model.fit(x_train)

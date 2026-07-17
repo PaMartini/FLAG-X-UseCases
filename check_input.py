@@ -18,7 +18,7 @@ csv_out = './results'
 input_list = os.listdir(csv_path)
 print(input_list)
 for file in input_list:
-    df = pd.read_csv(os.path.join(csv_path, file), decimal=".", sep=",") # change as needed
+    df = pd.read_csv(os.path.join(csv_path, file), decimal=",", sep=";") # change as needed
     input_channels = df.columns.tolist()
     with open(os.path.join(csv_out, f'csv_training_{date_time_str}.txt'), 'a') as f:
         f.write(file + "\n")
