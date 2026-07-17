@@ -1,5 +1,6 @@
 # open TSNE test
 # map FCM csv to TSNE and save embedding (for remapping of a different file)
+# simple grafics included
 # tested and running 2026-06-08
 
 import os
