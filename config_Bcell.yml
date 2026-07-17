@@ -1,0 +1,8 @@
+trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
+size_per_sample: 20000
+SOM_dim:
+  - 20
+  - 20
+SOM_epochs: 100
+val_range: [0, 262144] # 262144 for BD, 1048576 for Coulter Navios
+trafo_arcsinh: True # if False set cut offs for log trafo

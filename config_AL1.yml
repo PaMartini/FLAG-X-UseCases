@@ -1,0 +1,17 @@
+trainchannels:
+  - FS INT
+  - SS INT
+  - 15-FITC
+  - 13-PE
+  - 33-PC7
+  - 2-APC
+  - 7-APC-AF700
+  - 34-ECD
+  - 117-PC5.5
+  - HLADR-PB
+  - 45-CO
+size_per_sample: 5000
+SOM_dim:
+  - 20
+  - 20
+SOM_epochs: 20
