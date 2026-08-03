@@ -19,10 +19,10 @@ from flagx.dimred import UMAP
 from openTSNE import TSNE
 
 # --- Define selected Parameters for the workflow, identical to training! ---------------------------------
-trainchannels = ['FS INT', 'SS INT', '34-ECD', '117-PC5.5','45-CO'    
-] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
+trainchannels = ['Side Scatter Signal', 'Side Fluorescence Signal', 'Forward Scatter Signal', 'Forward Scatter Pulse Width Signal']
+# List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
 # AL1 full set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
-trafo_ash = False # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
+trafo_ash = True # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
 # set ash cofactor (standard =150) or log cutoffs at line 58 etc (settings identical to training) 
 
 # --- Define path where results are saved to
@@ -52,7 +52,7 @@ fdm.load_data_files_to_anndata()
 # trafo_log: Apply log transformation with custom cutoffs
 # In both cases, store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
 if trafo_ash:
-    preprocessing_kwargs = {'cofactor': 150}
+    preprocessing_kwargs = {'cofactor': 30}
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
 else:
     # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
@@ -151,9 +151,9 @@ export_to_fcs(
     add_columns=add_columns,  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
     add_columns_names=add_columns_names,  # Add names for added columns
     scale_columns=add_columns_names,  # Select added columns for scaling (all that were added to the file)
-    val_range=(0, 2 ** 20),  # Range to which selected columns are scaled to
+    val_range=(0, 256),  # Range to which selected columns are scaled to
     save_path=save_path,
-    save_filenames=f'annotated_test_data_{date_time_str}.fcs'
+    save_filenames=f'inference_data_{date_time_str}.fcs'
 )
 
 timetotal = datetime.now()-timestart

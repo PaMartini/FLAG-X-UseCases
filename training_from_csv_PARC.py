@@ -26,7 +26,7 @@ from flagx.dimred import UMAP
 from openTSNE import TSNE
 
 # --- selected Parameters for the workflow are drawn from YAML files -------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Sysmex.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 trainchannels = config.get('trainchannels')
@@ -37,7 +37,9 @@ SOM_dim = tuple(config.get('SOM_dim'))  # Dimensions of the SOM grid. 10x10 for 
 SOM_epochs = config.get('SOM_epochs')  # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
 val_range_list = config.get('val_range') 
 val_range = tuple(val_range_list)  
-trafo_arcsinh = config.get('trafo_arcsinh')   
+trafo_arcsinh = config.get('trafo_arcsinh')
+calcTSNE = config.get('calcTSNE')
+arcsinh_div = config.get('arcsinh_div')     
 
 # --- Define path where results are saved to
 save_path = './results/workflow_step_wise_unsupervised_som_training'
@@ -84,7 +86,7 @@ sample_sizes_df = fdm.sample_sizes_
 # In both cases, store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
 trafo_arcsinh = trafo_arcsinh # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
 if trafo_arcsinh:
-    preprocessing_kwargs = {'cofactor': 150}
+    preprocessing_kwargs = {'cofactor': arcsinh_div}
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
 else:
     # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
@@ -155,8 +157,8 @@ y_dummy = np.ones(x_train.shape[0]) * -999
 # Paul: Use shuffled training data for model fitting
 som_clf.fit(X=x_train_shuffled, y=y_dummy)
 
-# Save the trained model
-som_clf.save(filename='som_classifier.pkl', filepath=save_path)
+# Save the trained model (optional)
+# som_clf.save(filename='som_classifier.pkl', filepath=save_path)
 
 # Paul: For in computing dimensionality reductions use unshuffled data for clean data export
 _, x_som, _, _ = som_clf.transform(x_train)
@@ -165,17 +167,17 @@ time_c = datetime.now()
 timesom = time_c - time_b
 
 # --- t-SNE
-print ('computing t-SNE...')
-tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
-x_tsne = tsne_model.fit(x_train)
-# pickle.dump(x_tsne, open(os.path.join(save_path, 'tsne_embedding.pkl'), 'wb'))
-
+if calcTSNE:
+    print ('computing t-SNE...')
+    tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
+    x_tsne = tsne_model.fit(x_train)
+    # pickle.dump(x_tsne, open(os.path.join(save_path, 'tsne_embedding.pkl'), 'wb'))
 time_d = datetime.now()
 timeSNE = time_d - time_c
 
 # --- UMAP
 # print ('computing UMAP...')
-# umap_model = UMAP(n_components=2, n_jobs=-1)
+# umap_model = UMAP(n_components=2, n_jobs=-1)  
 # x_umap = umap_model.fit_transform(x_train)
 
 # --- PARC clustering
@@ -189,23 +191,36 @@ x_soms_1 = [x_som[starting_indices[i]: starting_indices[i + 1], 0] for i in rang
 x_soms_2 = [x_som[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 # x_umaps_1 = [x_umap[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
 # x_umaps_2 = [x_umap[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
-x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
-x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
+if calcTSNE:
+    x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
+    x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 parc_1 = [parc_labels[starting_indices[i]: starting_indices[i + 1]] for i in range(len(num_events))]
 
 # Export to FCS
+if calcTSNE:
+    add_columns = [
+        x_soms_1, x_soms_2,
+        x_tsnes_1, x_tsnes_2,
+        parc_1
+    ]
+    add_columns_names = ['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'PARC_labels']
+    scale_columns = ['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'PARC_labels']
+else:
+    add_columns = [
+        x_soms_1, x_soms_2,
+        parc_1
+    ]
+    add_columns_names = ['SOM_1', 'SOM_2', 'PARC_labels']
+    scale_columns = ['SOM_1', 'SOM_2', 'PARC_labels']
+
 export_to_fcs(
     data_list=fdm.anndata_list_,  # Export the test samples
     layer_key='no_trafo',  # We want to export non-transformed data => choose the 'no_trafo' layer
     sample_wise=False,  # Export one FCS in which the test samples are concatenated
-    add_columns=[
-        x_soms_1, x_soms_2,
-        x_tsnes_1, x_tsnes_2,
-        parc_1
-    ],  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
-    add_columns_names=['SOM_1', 'SOM_2',  'TSNE_1', 'TSNE_2', 'PARC_labels'],  # Add names for added columns
-    scale_columns=['SOM_1', 'SOM_2',  'TSNE_1', 'TSNE_2', 'pop1', 'PARC_labels'],  # Select added columns for scaling
-    val_range=(0, 2**18),  # Range to which selected columns are scaled to
+    add_columns=add_columns,
+    add_columns_names=add_columns_names,
+    scale_columns=scale_columns,
+    val_range=val_range,
     save_path=save_path,
     save_filenames=f'train_w_PARC_{date_time_str}.fcs'
 )
