@@ -1,5 +1,5 @@
-# open TSNE test
-# map FCM csv to TSNE and save embedding (for remapping of a different file)
+# open TSNE test independent of flow cytometry. example with many features and 10 classes.
+# TSNE and save embedding (for remapping of a different file)
 # simple grafics included
 # tested and running 2026-06-08
 
