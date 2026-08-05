@@ -1,16 +1,20 @@
-# tested and running 2026-03-12
+# train models on labelled csv files, export fcs file with predictions and dimensionality reduction
+# save models for prediction on new data.
 # "shuffle" set to False in data loader, but added manually before model training. 
-# read csv, perform training, dim reduction, export fcs and save model
+# expects column 'population' which is used as label for supervised training.
+# csv files are concatenated and tagged in a new column 'sample_id' by the script
+# expects column 'sample_idx' which is used to identify samples in the data matrix concatenated beforehand.
 # before run: Check number and names of channels is consistent across samples (use separate script)
-# 2026-06 optional lin transformation for FS INT and SS INT channels 
+# optional: linear transformation for FS INT and SS INT channels 
+# provide parameters in yaml file. tested and running 2026-07-31
 
 print('loading packages and paths...')
 import os
+import yaml
 import numpy as np
 import pandas as pd
 import pickle
 import torch
-import matplotlib.pyplot as plt
 from datetime import datetime
 
 timestart = datetime.now()
@@ -18,20 +22,22 @@ date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 
 from flagx.io import FlowDataManager, export_to_fcs
 from flagx.gating import SOMClassifier, MLPClassifier
-from flagx.dimred import UMAP
+# from flagx.dimred import UMAP
 from openTSNE import TSNE
 
-# --- Define selected Parameters for the workflow ------------------------------------
-trainchannels = [
-    'FS INT', 'SS INT', '34-ECD', '117-PC5.5', '45-CO'
-] # List of channels to be used for training. Check spelling and consistency across samples. Adjust if needed.
-# full set AL1: 'FS INT', 'SS INT', '15-FITC', '13-PE', '33-PC7', '2-APC', '7-APC-AF700', '34-ECD', '117-PC5.5', 'HLADR-PB', '45-CO'
-# Imst set: 'FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '14-APC700', '8-PB', '45-CO'
-trafo_ash = False # Set to True to apply arcsinh transformation, set to False to apply log transformation with custom cutoffs
-# set ash cofactor (standard =150) or log cutoffs at line 85 etc
-size_per_sample = 200000 # Maximum number of events per sample to be used for model training
-SOM_dim = (20, 20)  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 for better resolution
-SOM_epochs = 100 # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
+# --- selected Parameters for the workflow are drawn from YAML files, select and configure suitable file-------
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Sysmex.yml')
+with open(config_path, 'r', encoding='utf-8') as f:
+    config = yaml.safe_load(f) or {}
+trainchannels = config.get('trainchannels')
+size_per_sample = config.get('size_per_sample')  # Maximum number of events per sample to be used for model training
+SOM_dim = tuple(config.get('SOM_dim'))  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
+SOM_epochs = config.get('SOM_epochs')  # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
+val_range_list = config.get('val_range') 
+val_range = tuple(val_range_list)  
+trafo_arcsinh = config.get('trafo_arcsinh')
+arcsinh_div = config.get('arcsinh_div')
+# calcTSNE = config.get('calcTSNE') # currently TSNE always calculated
 
 # --- Define path where results are saved to
 save_path = './results/workflow_step_wise_supervised_training'
@@ -40,7 +46,7 @@ os.makedirs(save_path_data_handling, exist_ok=True)
 
 # --- Specify where training data is saved and specify the corresponding filenames
 # Define path to training data
-training_data_path = './data/training'
+training_data_path = './data/training_supervised'
 
 # Get list of files in the data directory (only include ones ending with .csv)
 training_files = sorted([fn for fn in os.listdir(training_data_path) if fn.endswith('.csv')])
@@ -72,19 +78,12 @@ fdm.load_data_files_to_anndata()
 # directory specified via 'save_path_data_handling'.
 fdm.check_sample_sizes(filename_sample_sizes_df='sample_sizes.csv')
 
-# Use a built-in plotting function to visualize the number of events per sample.
-# Resulting plot also saved to 'save_path_data_handling'.
-# fig, ax = plt.subplots(dpi=300)
-# fdm.plot_sample_size_df(sample_size_df=fdm.sample_sizes_, ax=ax)
-# fig.savefig(os.path.join(save_path_data_handling, 'sample_sizes.png'))
-# plt.close(fig)
-
 # --- Apply preprocessing transformation to each sample
 # trafo_ash: Apply arcsinh with cofactor 150,
 # trafo_log: Apply log transformation with custom cutoffs
 # In both cases, store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
-if trafo_ash:
-    preprocessing_kwargs = {'cofactor': 150}
+if trafo_arcsinh:
+    preprocessing_kwargs = {'cofactor': arcsinh_div}
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
 else:
     # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
@@ -165,7 +164,7 @@ som_clf = SOMClassifier(
 som_clf.fit(X=x_train_shuffled, y=y_train_shuffled)
 
 # Save the trained model
-som_clf.save(filename='som_classifier.pkl', filepath=save_path)
+som_clf.save(filename=f'som_classifier_{date_time_str}.pkl', filepath=save_path)
 
 _, x_som, _, _ = som_clf.transform(x_train)
 
@@ -185,7 +184,7 @@ mlp_clf = MLPClassifier(
 mlp_clf.fit(X=x_train_shuffled, y=y_train_shuffled)
 
 # Save the trained model
-mlp_clf.save(filename='mlp_classifier.pkl', filepath=save_path)
+mlp_clf.save(filename=f'mlp_classifier_{date_time_str}.pkl', filepath=save_path)
 
 # Paul: Predict labels for the training data. Use the unshuffled version of the data
 y_pred_som = som_clf.predict(x_train)
@@ -233,19 +232,23 @@ export_to_fcs(
     add_columns_names=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'y_pred_som', 'y_pred_mlp'],  # Add names for added columns
     scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'y_pred_som', 
                    'y_pred_mlp', 'population', 'sample_idx'],  # Select added columns for scaling
-    val_range=(0, 2**20),  # Range to which selected columns are scaled to
+    val_range=val_range,  # Range to which selected columns are scaled to
     save_path=save_path,
-    save_filenames=f'annotated_train_data_{date_time_str}.fcs'
+    save_filenames=f'data_supervised_training_{date_time_str}.fcs'
 )
 timetotal = datetime.now()-timestart
-with open(os.path.join(save_path, f'csv_training_{date_time_str}.txt'), 'a') as f:
+with open(os.path.join(save_path, f'csv_supervised_training_{date_time_str}.txt'), 'a') as f:
     f.write(f'"training_files" {date_time_str}: \n')
     for items in training_files:
         f.write(items + "\n")
     f.write(f'"training channels": {trainchannels}\n')
-    f.write(f'"samplesize maximum": {size_per_sample}\n')
+    f.write(f'"total events": {x_train.shape[0]}\n')
+    f.write(f'"number of populations for training": {int(np.max(y_train))}\n')
+    f.write(f'"samplesize limited to": {size_per_sample}\n')
     f.write(f'"SOM_dim": {SOM_dim}\n')
     f.write(f'"SOM_epochs": {SOM_epochs}\n')
+    f.write(f'"val_range": {val_range}\n')
+    f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"time data load": {timeload}\n')
     f.write(f'"timesom": {timesom}\n')
     f.write(f'"timemlp": {timemlp}\n')
