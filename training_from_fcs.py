@@ -1,6 +1,6 @@
 # SOM training (unsupervised) for samples without population annotation. Fast tSNE and automated clustering (PARC) added. 
 # shuffle version of the training data used for model fitting. Dimensionality reductions and FCS export based on unshuffled data
-# read FCS or csv files, perform training, dim reduction, export FCS and save models (SOM and optional: TSNE)
+# read FCS or csv files, perform training, dim reduction, export FCS and save models (optional)
 # Before use, check number and names of channels is consistent across samples (use separate script)
 # if channels like sample_idx or population1 (from manual sampling) are included in the FCS or csv data 
   # they need to be scaled for export (if so, add to 'scale_columns')
