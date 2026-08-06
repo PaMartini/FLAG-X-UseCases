@@ -5,7 +5,7 @@
 - Documentation: [Read the Docs](https://flag-x.readthedocs.io/en/latest/)
 
 ## General
-FLAG-X is used for the automatic classification of cell populations in flow cytometry data. The scripts provided here can be used to create an effective workflow.
+FLAG-X is used for the automatic classification of cell populations in flow cytometry data. The scripts provided here shows examples to create an effective workflow using this tool.
 
 The files used for training and inference must contain the same channels and must have been acquired under roughly the same measurement conditions.
 
@@ -21,9 +21,11 @@ The files used for training and inference must contain the same channels and mus
 
 ### Training
 
-For the training, compile datasets that contain all expected cell types at least once in sufficient cell numbers. Not every population needs to contain every cell type.
+For the training, compile datasets that contain all expected cell types at least once in sufficient cell numbers. Not every sample needs to contain every cell type.
 
-**training_from_fcs** Script runs with fcs and csv. Concatenates the datasets, performs dimensionality reduction with SOM and TSNE, and performs automatic clustering using PARC. The raw data is exported as an FCS file along with the metadata thus calculated. The FCS file can then be gated using flow cytometry software (we use Kaluza for the ease of color coding), with the calculated data (SOM, TSNE, PARC) facilitating the definition of the cell populations. 
+**training_from_fcs** Script runs with fcs and csv. Concatenates the datasets, performs dimensionality reduction with SOM and TSNE, and performs automatic clustering using PARC. The raw data is exported as an FCS file along with the metadata thus calculated. 
+
+The FCS file contining concatenated data from several samples can then be gated using flow cytometry software (we use Kaluza for the ease of color coding), with the calculated data (SOM, TSNE, PARC) facilitating the definition of the cell populations. Of course definition of cell populations in raw training files one by one is also possible.
 
 Export data from cell populations of interest population-wise and concatenate data into one large csv with a column indicating the cell populations as 1, 2, 3...
 
@@ -31,7 +33,7 @@ Export data from cell populations of interest population-wise and concatenate da
 
 ### Inference
 
-**fcs_inference** calculates the assignment of cells in new files to the defined populations based on the models generated above. The population statistics (cell numbers and (optional) fluorescence intesities) are exported as a CSV table with one row for each file. The MLP model is routinely used for this purpose. An FCS file, which can be used to verify the population assignments via color labeling, is also exported.
+**fcs_inference** calculates the assignment of cells in new files to the training populations based on the models generated above. The population statistics (cell numbers and (optional) fluorescence intensities) are exported as a CSV table with one row for each file. The MLP model is routinely used for this purpose. An FCS file, which can be used to verify the population assignments via color labeling, is also exported.
 
 
 
