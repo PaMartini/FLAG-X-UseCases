@@ -1,8 +1,9 @@
 # settings for Sysmex data files
 trainchannels: ['Side Scatter Signal', 'Side Fluorescence Signal', 'Forward Scatter Signal', 'Forward Scatter Pulse Width Signal']
-# WDF: ['Side Scatter Signal', 'Side Fluorescence Signal', 'Forward Scatter Signal', 'Forward Scatter Pulse Width Signal']
+# WDF, WPC: ['Side Scatter Signal', 'Side Fluorescence Signal', 'Forward Scatter Signal', 'Forward Scatter Pulse Width Signal']
+# WNR: ['Side Fluorescence Signal', 'Forward Scatter Signal', 'Side Scatter Signal', 'Forward Scatter Pulse Width Signal']
 # WDF short names: ['SSC', 'SFL', 'FSC', 'FSCW']
-size_per_sample: 20000
+size_per_sample: 200000 # maximum size. refers to events/file(s), not /single samples of already concatenated files
 SOM_dim:
   - 10
   - 10
@@ -10,4 +11,9 @@ SOM_epochs: 100
 val_range: [0, 256] # 262144 for BD, 1048576 for Coulter Navios, 256 for Sysmex
 trafo_arcsinh: True # if False set cut offs for log trafo
 arcsinh_div: 30  # 30 recommended for Sysmex files
-calcTSNE: True # if TSNE is calculated. Set to False to save time during script test
+calcTSNE: True # Only relevant for unsupervised training. for inference, check compute_dim_red below
+# -- the following only relevant for inference, irrelevant for training scripts --
+compute_dim_red: True # set to false for inference, if only tabular results are of interest
+calcchannels: ['Side Fluorescence Signal', 'Forward Scatter Signal', 'Side Scatter Signal', 'Forward Scatter Pulse Width Signal']
+calc_populations: [1,2,3,4,5] # Optional list of MLP population labels for which to compute calcchannel medians.
+         # Set to null or omit to use all predicted populations.

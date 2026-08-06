@@ -1,5 +1,7 @@
+# settings for analysis of B cell subpopulations
 trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
-size_per_sample: 20000
+# Julia Scholz ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
+size_per_sample: 20000 # maximum size. refers to events/file(s), not /single samples of already concatenated files
 SOM_dim:
   - 20
   - 20
@@ -7,4 +9,9 @@ SOM_epochs: 100
 val_range: [0, 262144] # 262144 for BD, 1048576 for Coulter Navios
 trafo_arcsinh: True # if False set cut offs for log trafo
 arcsinh_div: 150  # 150 recommended for BD files
-calcTSNE: True # if TSNE is calculated. Set to False to save time during script test
+calcTSNE: True # Only relevant for unsupervised training. for inference, check compute_dim_red below
+# -- the following only relevant for inference, irrelevant for training scripts --
+compute_dim_red: True # set to false for inference, if only tabular results are of interest
+calcchannels: ['CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
+calc_populations: [1,2,3,4,5] # Optional list of MLP population labels for which to compute calcchannel medians.
+         # Set to null or omit to use all predicted populations.
