@@ -37,6 +37,8 @@ val_range_list = config.get('val_range')
 val_range = tuple(val_range_list)  
 trafo_arcsinh = config.get('trafo_arcsinh')
 arcsinh_div = config.get('arcsinh_div')
+channel_name_to_cutoff = config.get('channel_name_to_cutoff')
+lin_trafo_FSSS = config.get('lin_trafo_FSSS')
 calcTSNE = config.get('calcTSNE')
 calcchannels = config.get('calcchannels') # List of channels for which to calculate median intensities per population
 calc_populations = config.get('calc_populations')  # Optional list of predicted populations for which to compute channel medians
@@ -70,22 +72,25 @@ fdm = FlowDataManager(
 fdm.load_data_files_to_anndata()
 
 # --- Apply preprocessing transformation to each sample, same as for training data
-# trafo_arcsinh: Apply arcsinh with cofactor 150,
-# trafo_log: Apply log transformation with custom cutoffs
-# In both cases, store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
+# store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
+trafo_arcsinh = trafo_arcsinh # (from YAML, True = arcsinh transformation, False = log transformation with custom cutoffs)
 if trafo_arcsinh:
     preprocessing_kwargs = {'cofactor': arcsinh_div}
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
 else:
-    # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
-    channel_name_to_cutoff = {
-         'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, 
-         '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200
-    }
+    channel_name_to_cutoff = channel_name_to_cutoff  # This dictionary is defined in the config YAML file
     preprocessing_kwargs = {'cutoffs': channel_name_to_cutoff}
     fdm.sample_wise_preprocessing(
         flavour='log10_w_custom_cutoffs', save_raw_to_layer='no_trafo', **preprocessing_kwargs
         )
+
+# Optional: 'FS INT' and 'SS INT' will be transformed by division (see YAML config)     
+if lin_trafo_FSSS:
+    for adata in fdm.anndata_list_:
+        if 'FS INT' in adata.var_names:
+            adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 300000
+        if 'SS INT' in adata.var_names:
+            adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 300000
 
 # Define channels that were used for model training
 channels = trainchannels
@@ -270,6 +275,8 @@ with open(os.path.join(save_path, f'fcs_inference_{date_time_str}.txt'), 'a') as
     f.write(f'"mlp classifier file": {mlp_model_file}\n')
     f.write(f'"val_range": {val_range}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
+    f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
+    f.write(f'"lin_trafo_FSSS": {lin_trafo_FSSS}\n')
     f.write (f'"dimreduction and fcs output generated": {compute_dim_red}\n')
     f.write(f'"population statistics provided in file df_calc_results_{date_time_str}.csv"\n')
     f.write(f'"events per population for all populations and samples": \n')

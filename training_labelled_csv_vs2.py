@@ -37,6 +37,8 @@ val_range_list = config.get('val_range')
 val_range = tuple(val_range_list)  
 trafo_arcsinh = config.get('trafo_arcsinh')
 arcsinh_div = config.get('arcsinh_div')
+channel_name_to_cutoff = config.get('channel_name_to_cutoff')
+lin_trafo_FSSS = config.get('lin_trafo_FSSS')
 # calcTSNE = config.get('calcTSNE') # currently TSNE always calculated
 
 # --- Define path where results are saved to
@@ -79,29 +81,26 @@ fdm.load_data_files_to_anndata()
 fdm.check_sample_sizes(filename_sample_sizes_df='sample_sizes.csv')
 
 # --- Apply preprocessing transformation to each sample
-# trafo_ash: Apply arcsinh with cofactor 150,
+# trafo_ash: Apply arcsinh with cofactor 
 # trafo_log: Apply log transformation with custom cutoffs
 # In both cases, store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
 if trafo_arcsinh:
     preprocessing_kwargs = {'cofactor': arcsinh_div}
     fdm.sample_wise_preprocessing(flavour='arcsinh', save_raw_to_layer='no_trafo', **preprocessing_kwargs)
 else:
-    # Define python dictionary mapping channel names to cutoffs (arbitrarily chosen here, adjust if needed)
-    # Note optional: 'FS INT' and 'SS INT' will be transformed by division by 350000 instead of log
-    channel_name_to_cutoff = {
-         'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, '7-APC-AF700': 200, 
-         '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200
-    }
+    channel_name_to_cutoff = channel_name_to_cutoff  # This dictionary is defined in the config YAML file
     preprocessing_kwargs = {'cutoffs': channel_name_to_cutoff}
     fdm.sample_wise_preprocessing(
         flavour='log10_w_custom_cutoffs', save_raw_to_layer='no_trafo', **preprocessing_kwargs
         )
-# Apply division by 350000 transformation to 'FS INT' and 'SS INT' channels
-    # for adata in fdm.anndata_list_:
-    #    if 'FS INT' in adata.var_names:
-    #        adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 350000
-    #   if 'SS INT' in adata.var_names:
-    #        adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 350000
+
+# Optional: 'FS INT' and 'SS INT' will be transformed by division (see YAML config)    
+if lin_trafo_FSSS:
+    for adata in fdm.anndata_list_:
+        if 'FS INT' in adata.var_names:
+            adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 300000
+        if 'SS INT' in adata.var_names:
+            adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 300000
 
 # --- Downsample each sample to a target number of events
 # Set target_num_events to 1000 for fast model training in this example
@@ -245,10 +244,12 @@ with open(os.path.join(save_path, f'csv_supervised_training_{date_time_str}.txt'
     f.write(f'"total events": {x_train.shape[0]}\n')
     f.write(f'"number of populations for training": {int(np.max(y_train))}\n')
     f.write(f'"samplesize limited to": {size_per_sample}\n')
+    f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
+    f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
+    f.write(f'"lin_trafo_FSSS": {lin_trafo_FSSS}\n')
     f.write(f'"SOM_dim": {SOM_dim}\n')
     f.write(f'"SOM_epochs": {SOM_epochs}\n')
     f.write(f'"val_range": {val_range}\n')
-    f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"time data load": {timeload}\n')
     f.write(f'"timesom": {timesom}\n')
     f.write(f'"timemlp": {timemlp}\n')
