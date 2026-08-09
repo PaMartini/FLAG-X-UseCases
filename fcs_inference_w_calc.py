@@ -6,7 +6,7 @@
 # check that preprocessing (trafo)and channels are identical to training samples
 # path to pkl trained models is defined in line 130 etc (currently ./data/models)
 # TSNE inference to trained TSNE model included as an option, working, but not very well.
-# tested and running 2026-08-02
+# tested and running 2026-08-09
 
 print('loading scripts and data...')
 import os
@@ -26,7 +26,7 @@ from openTSNE import TSNE
 import anndata as ad
 
 # --- selected Parameters from YAML files, select and configure suitable file, parameters identical to training!-------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Sysmex.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 trainchannels = config.get('trainchannels')
@@ -70,6 +70,15 @@ fdm = FlowDataManager(
 
 # Load data into memory
 fdm.load_data_files_to_anndata()
+
+# --- Apply spillover compensation if the FCS files contain a spillover matrix
+print('applying spillover compensation...')
+try:
+    fdm.sample_wise_compensation()
+    if fdm.compensation_log_ is not None:
+        print(fdm.compensation_log_.to_string(index=False))
+except Exception as e:
+    print(f'compensation step failed for one or more files: {e}')
 
 # --- Apply preprocessing transformation to each sample, same as for training data
 # store non-transformed data in a separate layer of the AnnData object that we call 'no_trafo'.
@@ -252,7 +261,7 @@ if compute_dim_red:
     ]
     add_columns_names += ['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2']
 
-# Export to FCS
+# Export to FCS, compensated raw data, with added columns for predictions and optional dimensionality reductions
 export_to_fcs(
     data_list=fdm.anndata_list_,  # Export the test samples
     layer_key='no_trafo',  # We want to export non-transformed data => choose the 'no_trafo' layer

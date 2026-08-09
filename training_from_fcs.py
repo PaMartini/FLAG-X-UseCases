@@ -1,12 +1,12 @@
 # SOM training (unsupervised) for samples without population annotation. Fast tSNE and automated clustering (PARC) added. 
 # shuffle version of the training data used for model fitting. Dimensionality reductions and FCS export based on unshuffled data
-# read FCS or csv files, perform training, dim reduction, export FCS and save models (optional)
+# read FCS or csv files, perform training, dim reduction, export compensated FCS and save models (optional)
 # Before use, check number and names of channels is consistent across samples (use separate script)
 # if channels like sample_idx or population1 (from manual sampling) are included in the FCS or csv data 
   # they need to be scaled for export (if so, add to 'scale_columns')
 # Sample_id channel is added by script to tag the different files
 # config parameters drawn from yaml files, select and configure suitable file 
-# works with FCS and csv (english version) files, tested and running 2026-07-30
+# works with FCS and csv (english version) files, tested and running 2026-08-09
 
 import os
 import yaml
@@ -25,7 +25,7 @@ from flagx.gating import SOMClassifier
 from openTSNE import TSNE
 
 # --- selected Parameters for the workflow are drawn from YAML files, select and configure suitable file-------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_AL1.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 trainchannels = config.get('trainchannels')
@@ -98,6 +98,15 @@ print ('loading data...')
 # AnnData is a Python class similar to Pandas DataFrames but with more options and functions for data annotation.
 # see: https://anndata.readthedocs.io/en/stable/
 fdm.load_data_files_to_anndata()
+
+# --- Apply spillover compensation if the FCS files contain a spillover matrix
+print('applying spillover compensation...')
+try:
+    fdm.sample_wise_compensation()
+    if fdm.compensation_log_ is not None:
+        print(fdm.compensation_log_.to_string(index=False))
+except Exception as e:
+    print(f'compensation step failed for one or more files: {e}')
 
 # --- Check the number of events per sample
 # Create a dataframe with the columns sample and n_events, this df is an attribute of the FDM instance
@@ -232,8 +241,9 @@ else:
     add_columns_names = ['SOM_1', 'SOM_2', 'PARC_labels']
     scale_columns = ['SOM_1', 'SOM_2', 'PARC_labels']
 
+# Export the training samples in one concatenated file, compensated raw data
 export_to_fcs(
-    data_list=fdm.anndata_list_,  # Export the test samples
+    data_list=fdm.anndata_list_,  
     layer_key='no_trafo',  # We want to export non-transformed data => choose the 'no_trafo' layer
     sample_wise=False,  # Export one FCS in which the test samples are concatenated
     add_columns=add_columns,

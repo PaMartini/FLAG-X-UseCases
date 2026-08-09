@@ -26,7 +26,7 @@ from flagx.gating import SOMClassifier, MLPClassifier
 from openTSNE import TSNE
 
 # --- selected Parameters for the workflow are drawn from YAML files, select and configure suitable file-------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Sysmex.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 trainchannels = config.get('trainchannels')
@@ -230,7 +230,7 @@ export_to_fcs(
     ],  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
     add_columns_names=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'y_pred_som', 'y_pred_mlp'],  # Add names for added columns
     scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'y_pred_som', 
-                   'y_pred_mlp', 'population', 'sample_idx'],  # Select added columns for scaling
+                   'y_pred_mlp', 'sample_idx', 'population'],  #  Select added columns for scaling
     val_range=val_range,  # Range to which selected columns are scaled to
     save_path=save_path,
     save_filenames=f'data_supervised_training_{date_time_str}.fcs'
