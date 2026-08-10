@@ -1,17 +1,24 @@
 # settings for analysis of B cell subpopulations
-trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
+trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD45']
 # Julia Scholz ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
-size_per_sample: 20000 # maximum size. refers to events/file(s), not /single samples of already concatenated files
+size_per_sample: 200000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
 SOM_dim:
-  - 20
-  - 20
+  - 15
+  - 15
 SOM_epochs: 100
 val_range: [0, 262144] # 262144 for BD, 1048576 for Coulter Navios
 trafo_arcsinh: True # if False set cut offs for log trafo
 arcsinh_div: 150  # 150 recommended for BD files
-calcTSNE: True # Only relevant for unsupervised training. for inference, check compute_dim_red below
+# channel_name_to_cutoff: {'FS INT': 50000, etc} # define if arcsinh = false
+lin_trafo_FSSS: false # applies linear trafo instead of log or arcsinh for FS and SS
+calcTSNE: False # Only relevant for unsupervised training. for inference, check compute_dim_red below
 # -- the following only relevant for inference, irrelevant for training scripts --
-compute_dim_red: True # set to false for inference, if only tabular results are of interest
-calcchannels: ['CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
+compute_dim_red: False # set to false for inference, if only tabular results are of interest
+calcchannels: ['CD20', 'CD45']
 calc_populations: [1,2,3,4,5] # Optional list of MLP population labels for which to compute calcchannel medians.
          # Set to null or omit to use all predicted populations.
+# -- the following only relevant for preselection ---
+size_pop_1: 2000 # maximum size per population
+size_pop_2: 5000
+size_pop_3: 8000
+include_predict_columns: True
