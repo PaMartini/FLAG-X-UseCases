@@ -1,10 +1,11 @@
 # Concatenate CSV files for supervised training
 # Last modified: 11-08-2026
 
-# Reads a list of CSV files from input directory, concatenates all into a single dataframe, checks sample and event IDs and exports as CSV.
+# Reads a list of CSV files from input directory, concatenates all into a single dataframe and exports as CSV.
 # Input:
 #   - directory containing input CSV files
 # Options:
+#   - specify output directory (./results by default)
 #   - define an experiment name (by default a generalized version of the sample names is used)
 #   - include columns which are found in only some of the input files (by default only shared columns are exported)
 
