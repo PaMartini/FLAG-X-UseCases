@@ -29,26 +29,28 @@ from openTSNE import TSNE
 config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
+training_data_path = config.get('path_sup_training')  # Path to the directory where the training data is stored
+save_path = config.get('save_path_sup_training')  # Path to the directory where the results are saved
 trainchannels = config.get('trainchannels')
 size_per_sample = config.get('size_per_sample')  # Maximum number of events per sample to be used for model training
 SOM_dim = tuple(config.get('SOM_dim'))  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
-SOM_epochs = config.get('SOM_epochs')  # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
+SOM_epochs = config.get('SOM_epochs')  # Number of epochs for SOM training. default 100
 val_range_list = config.get('val_range') 
 val_range = tuple(val_range_list)  
 trafo_arcsinh = config.get('trafo_arcsinh')
 arcsinh_div = config.get('arcsinh_div')
 channel_name_to_cutoff = config.get('channel_name_to_cutoff')
 lin_trafo_FSSS = config.get('lin_trafo_FSSS')
-# calcTSNE = config.get('calcTSNE') # currently TSNE always calculated
+calcTSNE = config.get('calcTSNE') 
 
 # --- Define path where results are saved to
-save_path = './results/workflow_step_wise_supervised_training'
-save_path_data_handling = './results/workflow_step_wise_supervised_training/data_handling'
+save_path = save_path
+save_path_data_handling = os.path.join(save_path, 'data_handling')
 os.makedirs(save_path_data_handling, exist_ok=True)
 
 # --- Specify where training data is saved and specify the corresponding filenames
 # Define path to training data
-training_data_path = './data/training_supervised'
+training_data_path = training_data_path  # Path to the directory where the training data is stored
 
 # Get list of files in the data directory (only include ones ending with .csv)
 training_files = sorted([fn for fn in os.listdir(training_data_path) if fn.endswith('.csv')])
@@ -193,44 +195,53 @@ time_d = datetime.now()
 timemlp = time_d - time_c
 
 # --- t-SNE training, save embedding (optional)
-print ('computing t-SNE...')
-tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
-x_tsne = tsne_model.fit(x_train)
-# pickle.dump(x_tsne, open(os.path.join(save_path, 'tsne_embedding.pkl'), 'wb'))
+if calcTSNE:
+    print ('computing t-SNE...')
+    tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
+    x_tsne = tsne_model.fit(x_train)
+    # pickle.dump(x_tsne, open(os.path.join(save_path, 'tsne_embedding.pkl'), 'wb'))
 
 time_e = datetime.now()
 timeSNE = time_e - time_d
 
-# --- UMAP
-# print ('computing UMAP...')
-# umap_model = UMAP(n_components=2, n_jobs=-1)
-# x_umap = umap_model.fit_transform(x_train)
-
 # Change back into sample-wise format (input format required by export function)
 x_soms_1 = [x_som[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
 x_soms_2 = [x_som[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
-# x_umaps_1 = [x_umap[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
-# x_umaps_2 = [x_umap[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
-x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
-x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
+
+if calcTSNE:
+    x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
+    x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 
 # Paul: Also change format of predictions
 y_preds_som = [y_pred_som[starting_indices[i]: starting_indices[i + 1]] for i in range(len(num_events))]
 y_preds_mlp = [y_pred_mlp[starting_indices[i]: starting_indices[i + 1]] for i in range(len(num_events))]
+
+if calcTSNE:
+    add_columns = [
+        x_soms_1, x_soms_2,
+        x_tsnes_1, x_tsnes_2,
+        y_preds_som, y_preds_mlp
+    ]
+    add_columns_names = ['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'y_pred_som', 'y_pred_mlp']
+    scale_columns = ['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'y_pred_som',
+                    'y_pred_mlp', 'sample_idx', 'population']
+else:
+    add_columns = [
+        x_soms_1, x_soms_2,
+        y_preds_som, y_preds_mlp
+    ]
+    add_columns_names = ['SOM_1', 'SOM_2', 'y_pred_som', 'y_pred_mlp']
+    scale_columns = ['SOM_1', 'SOM_2', 'y_pred_som',
+                    'y_pred_mlp', 'sample_idx', 'population']
 
 # Paul: Add predictions for training data to be exported to FCS
 export_to_fcs(
     data_list=fdm.anndata_list_,  # Export the test samples
     layer_key='no_trafo',  # We want to export non-transformed data => choose the 'no_trafo' layer
     sample_wise=False,  # Export one FCS in which the test samples are concatenated
-    add_columns=[
-        x_soms_1, x_soms_2,
-        x_tsnes_1, x_tsnes_2,
-        y_preds_som, y_preds_mlp
-    ],  # Add columns corresponding to the 1st and 2nd dimension of the dimensionality reductions into 2D
-    add_columns_names=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'y_pred_som', 'y_pred_mlp'],  # Add names for added columns
-    scale_columns=['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'y_pred_som', 
-                   'y_pred_mlp', 'sample_idx', 'population'],  #  Select added columns for scaling
+    add_columns=add_columns,
+    add_columns_names=add_columns_names,
+    scale_columns=scale_columns,
     val_range=val_range,  # Range to which selected columns are scaled to
     save_path=save_path,
     save_filenames=f'data_supervised_training_{date_time_str}.fcs'
