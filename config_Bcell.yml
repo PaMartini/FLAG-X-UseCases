@@ -5,6 +5,7 @@ path_unsup_training: './data/training'
 path_sup_training: './data/training_supervised'
 path_preselect: './data/preselect'
 path_inference: './data/testing'
+path_models: './data/models'
 # -- data saving paths
 save_path_unsup_training: './results/unsupervised_training'
 save_path_sup_training: './results/supervised_training'
@@ -21,7 +22,7 @@ size_pop_3: 8000
 include_predict_columns: False
 
 # -- settings for training and inference --
-trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD45']
+trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD38', 'CD45']
 # e.g. Julia Scholz ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
 size_per_sample: 200000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
 SOM_dim:
@@ -36,8 +37,8 @@ lin_trafo_FSSS: false # applies linear trafo instead of log or arcsinh for FS an
 calcTSNE: True # Only relevant for training (True is always recommended for unsupervised training)
 
 # -- settings only relevant for inference, irrelevant for training scripts --
-max_rows_per_batch: 200000 # maximum number of lines to read in at once for inference. # 2000000 is reasonable
-compute_dim_red: False # set to false for inference, if only tabular results are of interest
+max_rows_per_batch: 500000 # maximum number of lines to read in at once for inference. # 2000000 is reasonable
+show_SOM: True # fast procedure in inference
 calcchannels: ['CD20', 'CD45']
-calc_populations: [1,2,3,4,5] # Optional list of MLP population labels for which to compute calcchannel medians.
+calc_populations: [1,2,3] # Optional list of MLP population labels for which to compute calcchannel medians.
          # Set to null or omit to use all predicted populations.
