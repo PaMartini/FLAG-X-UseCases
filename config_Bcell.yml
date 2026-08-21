@@ -15,16 +15,9 @@ save_path_inference: './results/inference'
 # -- settings for preprocessing --
 # (still to be listed)
 
-# -- settings only relevant for preselection script ---
-size_pop_1: 1000 # maximum size per population
-size_pop_2: 7000
-size_pop_3: 8000
-include_predict_columns: False
-
 # -- settings for training and inference --
 trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD38', 'CD45']
 # e.g. Julia Scholz ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
-size_per_sample: 200000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
 SOM_dim:
   - 15
   - 15
@@ -34,11 +27,20 @@ trafo_arcsinh: True # if False set cut offs for log trafo
 arcsinh_div: 150  # 150 recommended for BD files
 # channel_name_to_cutoff: {'FS INT': 50000, etc} # define if arcsinh = false
 lin_trafo_FSSS: false # applies linear trafo instead of log or arcsinh for FS and SS
-calcTSNE: True # Only relevant for training (True is always recommended for unsupervised training)
+
+# -- only relevant for training --
+calcTSNE: False # (True is always recommended for unsupervised training)
+size_per_sample: 10000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
+
+# -- settings only relevant for preselection script ---
+size_pop_1: 1000 # maximum size per population
+size_pop_2: 7000
+size_pop_3: 8000
+include_predict_columns: False
 
 # -- settings only relevant for inference, irrelevant for training scripts --
-max_rows_per_batch: 500000 # maximum number of lines to read in at once for inference. # 2000000 is reasonable
-show_SOM: True # fast procedure in inference
-calcchannels: ['CD20', 'CD45']
+max_rows_per_batch: 500000 # maximum number of lines to read in at once for inference. # 2 Mio is reasonable
+show_SOM: True # procedure is fast in inference
+calcchannels: ['CD20', 'CD45'] # if fluorescence intensity per channel and population. population sizes are always calculated
 calc_populations: [1,2,3] # Optional list of MLP population labels for which to compute calcchannel medians.
          # Set to null or omit to use all predicted populations.

@@ -1,6 +1,6 @@
 # SOM training (unsupervised) for samples without population annotation. Fast tSNE and automated clustering (PARC) added. 
 # shuffle version of the training data used for model fitting. Dimensionality reductions and FCS export based on unshuffled data
-# read FCS or csv files, perform training, dim reduction, export compensated FCS and save models (optional)
+# read FCS or csv files, perform training, dim reduction, export compensated FCS and save SOM model (optional)
 # Before use, check number and names of channels is consistent across samples (use separate script)
 # if channels like sample_idx or population1 (from manual sampling) are included in the FCS or csv data 
   # they need to be scaled for export (if so, add to 'scale_columns')
@@ -214,8 +214,6 @@ parc_labels = Parc1.labels
 # Change back into sample-wise format (input format required by export function)
 x_soms_1 = [x_som[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
 x_soms_2 = [x_som[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
-# x_umaps_1 = [x_umap[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
-# x_umaps_2 = [x_umap[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 if calcTSNE:
     x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
     x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
@@ -256,7 +254,7 @@ with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a
     for index, row in sample_sizes_df.iterrows():
         f.write(f'"{row["sample"]}": {row["n_events"]}\n')
     f.write(f'"training channels": {trainchannels}\n')
-    f.write(f'"size max per sample": {size_per_sample}\n')
+    f.write(f'"large samples downsampled to": {size_per_sample}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
     f.write(f'"lin_trafo_FSSS": {lin_trafo_FSSS}\n')
