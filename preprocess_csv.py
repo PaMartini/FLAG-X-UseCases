@@ -1,18 +1,15 @@
 # CSV preprocessing
-# Last modified: 11-08-2026
+# Last modified: 25-08-2026
 
 # Reads a list of CSV files from input directory, checks the formatting and exports reformatted CSV-s into output directory.
-# Input:
+# Input (read from YAML config file):
 #   - path to input dir
-# Options:
-#   - specify path to output directory (default is './results')
-#   - check channel names against list of expected labels; if no list is provided, the most commonly occurring name for each channel is used
-#   - add unique event ID-s
+#   - list of expected channel names
 
 
 
-import os
-import argparse
+import os, sys
+import yaml
 from glob import glob
 import pandas as pd
 from pprint import pprint
@@ -23,21 +20,12 @@ from collections import Counter
 
 ### Parse arguments
 
-parser = argparse.ArgumentParser(description="Checks CSV files for expected formatting and reformats them in a uniform style.")
-parser.add_argument("-d", "--input_dir", type=str, nargs='?', default=".", help="path to directory of input files")
-parser.add_argument("-o", "--output_dir", type=str, nargs='?', default="./results", help="(optional) path to output directory (./results by default)")
-parser.add_argument("-id", "--add_IDs", action='store_true', help="(optional) add unique event identifiers")
-parser.add_argument("-en", "--format_en", action='store_true', help="(optional) use if input CSV files are formatted in English style (German is assumed by default)")
-parser.add_argument("-c", "--channels", type=str, help="(optional) path to TXT file containing expected channel names")
+with open("config_Bcell.yml", "r") as f:
+    config = yaml.safe_load(f)
 
-args = parser.parse_args()
-
-INPUT_DIR = args.input_dir
-OUT = args.output_dir
-add_IDs = args.add_IDs
-format_en = args.format_en
-exp_channels = args.channels
-
+INPUT_DIR = config["path_sup_training"]
+OUT = config["save_path_sup_training"]
+channels = config["trainchannels"]
 
 
 
@@ -58,6 +46,15 @@ for file in path_list:
     fname = file.split("/")[-1].split(".")[0]
     fname = fname.replace(" ", "_")
     filename_list.append(fname)
+
+    # Detect CSV formatting style
+    # --- assume European formatting by default (decimal point = ",", separator = ";")
+    format_en = False
+    # --- if the first line contains a comma, assume English formatting (decimal point = ".", separator = ",")
+    with open(file, 'r') as f:
+        first_line = f.readline()
+        if first_line.find(",") != -1:
+            format_en = True
     
     # Read in the file
     if format_en:
@@ -68,10 +65,8 @@ for file in path_list:
     # Remove unnecessary column if present
     df = df.drop("FS PEAK", axis=1, errors="ignore")
 
-    # Add unique event IDs
-    if add_IDs:
-        IDs = [("ID_" + str(id).zfill(len(str(df.shape[0])))) for id in range(0, df.shape[0])]
-        df.insert(0, "Event ID", IDs, allow_duplicates=False)
+    # Add unique event IDs (int)
+    df.insert(0, "Event ID", range(0, df.shape[0]), allow_duplicates=False)
 
     # Add df to list
     df_list.append(df)
@@ -87,40 +82,20 @@ print("")
 # --- Compare colnames across all imported df-s
 # --- Use channel name list from input if provided, otherwise use most common name per column
 
-if exp_channels is not None:
-
-    # Read in channel names from TXT
-    with open(exp_channels, 'r') as file:
-        channels = file.read().splitlines()
-    
-    if len(channels) == 1:
-        if channels.find(",") == -1:
-            channels = channels.split(";")
-        else:
-            channels = channels.split(",")
-
-        for ch in channels:
-            if ch[0] == " ":
-                ch = ch[1:]
-
-    print("Expected channels from list (" + str(len(channels)) + "): " + str(channels))
-    print("")
-
-    # Rename columns using provided channel names
-    try:
-        for df in df_list:
-            df.columns = ["Event ID"] + channels
-    except ValueError as err:
-       print(err)
-       print("--> Number of channels in TXT input doesn't match number of CSV columns. Please check the input files.")
-       print("")
+# Rename columns using provided channel names
+print("Expected channels (" + str(len(channels)) + "): " + str(channels))
+print("")
+if channels is not None and len(channels) == df.shape[1] - 1:
+    for df in df_list:
+        df.columns = ["Event ID"] + channels
 else:
+    # If no list is provided or the length doesn't match, use the most common name per column (correcting for typos)
+    print("No channel name list provided or length doesn't match number of columns. Using most common name per column instead.")
     colnames_in = pd.DataFrame([list(df.columns) for df in df_list])
     colnames_ok = []
     colnames_check = []
     colnames_final = []
 
-    # Correct for typos: if multiple names for same column are present, use the most commonly occurring one
     for i in list(colnames_in.columns):
         col = colnames_in[i]
         if len(col.unique()) == 1:
