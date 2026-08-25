@@ -1,38 +1,28 @@
 # Concatenate CSV files for supervised training
-# Last modified: 11-08-2026
+# Last modified: 25-08-2026
 
 # Reads a list of CSV files from input directory, concatenates all into a single dataframe and exports as CSV.
-# Input:
+# Input (read from YAML config file):
 #   - directory containing input CSV files
-# Options:
-#   - specify output directory (./results by default)
-#   - define an experiment name (by default a generalized version of the sample names is used)
-#   - include columns which are found in only some of the input files (by default only shared columns are exported)
 
 
 import os
 import sys
-import argparse
+import yaml
 from glob import glob
 import pandas as pd
 from pprint import pprint
+import csv
 
 
 
 ### Parse arguments
 
-parser = argparse.ArgumentParser(description="Concatenates CSV files from the same experiment into a single table for supervised training.")
-parser.add_argument("-d", "--input_dir", type=str, nargs='?', default=".", help="path to directory of input files")
-parser.add_argument("-o", "--output_dir", type=str, nargs='?', default="./results", help="(optional) path to output directory (./results by default)")
-parser.add_argument("-n", "--name", type=str, nargs='?', help="(optional) experiment name")
-parser.add_argument("--no_filter", action='store_true', help="(optional) include only columns which are present in all of the input files")
+with open("config_Bcell.yml", "r") as f:
+    config = yaml.safe_load(f)
 
-args = parser.parse_args()
-
-INPUT_DIR = args.input_dir
-OUT = args.output_dir
-name = args.name
-no_filter = args.no_filter
+INPUT_DIR = config["save_path_unsup_training"]
+OUT = config["path_sup_training"]
 
 
 
@@ -44,17 +34,35 @@ print("Number of CSV files found in input directory: " + str(len(path_list)))
 
 df_list = []
 filename_list = []
+population_dict = {}
 
-for file in path_list:
+for file in sorted(path_list):
 
+    # Detect CSV formatting style (assume European by default)
+    format_en = False
+    with open(file, 'r') as f:
+        first_line = f.readline()
+        if first_line.find(",") != -1:
+            format_en = True
+        
+    # Read in the file
+    if format_en:
+        df = pd.read_csv(file, decimal=".", sep=",", low_memory=False)
+    else:
+        df = pd.read_csv(file, decimal=",", sep=";", low_memory=False)
+
+    # Get sample name, add as column if no sample_id column present
     fname = file.split("/")[-1].split(".")[0]
     fname = fname.replace(" ", "_")
     filename_list.append(fname)
-    
-    df = pd.read_csv(file, decimal=".", sep=",", low_memory=False)
+    if "sample_ID" not in df.columns:
+        df.insert(0, "sample_name", fname)
 
-    # Add column for sample name
-    df.insert(0, "Sample", fname)
+    # Get population name, add as column
+    pop_name = fname.split("_")[-1]   # assume the last part of the file name to be the population name
+    if pop_name not in population_dict:
+        population_dict[pop_name] = len(population_dict)
+    df.insert(len(df.columns), "population", population_dict[pop_name])
 
     df_list.append(df)
 
@@ -66,40 +74,42 @@ print("")
 ### Concatenate
 
 # --- Check if columns are uniform across all dfs
+dfs_concat = [df_list[0]]
 cols_same = True
-dfs_concat = []
-dfs_exclude = []
 
 for df in df_list[1:]:
     if list(df_list[0].columns) == list(df.columns):
         dfs_concat.append(df)
     else:
         cols_same = False
-        dfs_exclude.append(df)
 
 # --- Concatenate dfs
-result = None
-if len(dfs_exclude) == 0 or no_filter:
-    result = pd.concat(df_list)
-else:
-    result = pd.concat(dfs_concat)
-    print("--> Warning: some of the input files have additional columns not present in others.")
-    print("--> By default such columns are excluded from the result. To include them, run the script with option --no_filter.")
+result = pd.concat(dfs_concat)
+if not cols_same:
+    print("--> Warning: some of the input files have missing or additional columns, these files are excluded from the result.")
     
 
 
 
 ### Export result
 
-print("Exporting result to: " + OUT)
-if name is None:
-    name = max(filename_list, key=len)
-    for fn in filename_list:
-        for i in range(len(fn)):
-            if max(filename_list, key=len)[i] != fn[i]:
-                name = name[:i] + "x" + name[(i+1):]
+print("Exporting results to: " + OUT)
 
-result.to_csv(os.path.join(OUT, f"concat_{name}.csv"), sep=",", decimal=".", index=False)
+fn_roots = [fn.rsplit("_", 1)[0] for fn in filename_list]
+name = max(fn_roots, key=len)
+for fn in fn_roots:
+    for i in range(len(fn)):
+        if max(fn_roots, key=len)[i] != fn[i]:
+            name = name[:i] + "x" + name[(i+1):]
+
+result.to_csv(os.path.join(OUT, f"{name}_concat.csv"), sep=",", decimal=".", index=False)
+
+# Save population name to ID mapping as CSV
+with open(os.path.join(OUT, f"{name}_populations.csv"), 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(["population_ID", "population_name"])
+    for pop_name, pop_id in population_dict.items():
+        writer.writerow([pop_id, pop_name])
 
 print("DONE")
 print("")
