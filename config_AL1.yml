@@ -21,18 +21,19 @@ trainchannels: ['FS INT', 'SS INT', '45-CO']
 #  '7-APC-AF700', 'HLADR-PB', '45-CO'] 'APC-AF750'
 
 SOM_dim:
-  - 20
-  - 20
+  - 25
+  - 25
 SOM_epochs: 100
 val_range: [0, 1048576] # 262144 for BD, 1048576 for Coulter Navios
-trafo_arcsinh: True # if False set cut offs for log trafo
+trafo_arcsinh: False # if False set cut offs for log trafo
 arcsinh_div: 300  # 150 to 300 recommended for Navios files
 channel_name_to_cutoff: {'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, 
   '7-APC-AF700': 200, '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200} # define if arcsinh = false
 lin_trafo_FSSS: False # applies linear trafo instead of log or arcsinh for FS and SS
+multiply_FSSS: True
 
 # -- only relevant for training --
-size_per_sample: 50000 # maximum size. refers to events/file(s), not /single samples of already concatenated files
+size_per_sample: 30000 # maximum size. refers to events/file(s), not /single samples of already concatenated files
 calcTSNE: True # Only relevant for unsupervised training
 
 # -- settings only relevant for preselection script ---

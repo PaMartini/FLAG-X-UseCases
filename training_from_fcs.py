@@ -12,6 +12,7 @@
 import os
 import yaml
 import numpy as np
+import pandas as pd
 from datetime import datetime
 
 print('loading packages and paths...')
@@ -40,6 +41,7 @@ val_range = tuple(val_range_list)
 trafo_arcsinh = config.get('trafo_arcsinh')
 arcsinh_div = config.get('arcsinh_div')
 channel_name_to_cutoff = config.get('channel_name_to_cutoff')
+multiply_FSSS = config.get('multiply_FSSS')
 lin_trafo_FSSS = config.get('lin_trafo_FSSS')
 calcTSNE = config.get('calcTSNE')
 
@@ -130,13 +132,13 @@ else:
         flavour='log10_w_custom_cutoffs', save_raw_to_layer='no_trafo', **preprocessing_kwargs
         )
 
-# Optional: 'FS INT' and 'SS INT' will be transformed by division (see YAML config)     
-if lin_trafo_FSSS:
+# Optional: 'FS INT' and 'SS INT' will be scaled up (makes only sense if the trafo is set to log, not arcsinh)     
+if multiply_FSSS:
     for adata in fdm.anndata_list_:
         if 'FS INT' in adata.var_names:
-            adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 300000
+            adata[:, 'FS INT'].X = (adata[:, 'FS INT'].X - 4) * 3
         if 'SS INT' in adata.var_names:
-            adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 300000
+            adata[:, 'SS INT'].X = (adata[:, 'SS INT'].X - 3) * 2
 
 # --- Downsample each sample to a target number of events
 fdm.sample_wise_downsampling(data_set='all', target_num_events=size_per_sample)
@@ -152,6 +154,8 @@ num_events = [x.shape[0] for x in data_matrices]
 starting_indices = np.cumsum([0, ] + num_events)
 # Concatenate
 x_train = np.concatenate(data_matrices, axis=0)
+# df_x_train = pd.DataFrame(x_train, columns=channels)
+# df_x_train.to_csv(os.path.join(save_path, f'x_train_{date_time_str}.csv'), index=False, decimal=',', sep=';')
 
 # Generate shuffle version of the training data
 idx_shuffle = np.random.permutation(x_train.shape[0])
@@ -258,7 +262,7 @@ with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a
     f.write(f'"large samples downsampled to": {size_per_sample}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
-    f.write(f'"lin_trafo_FSSS": {lin_trafo_FSSS}\n')
+    f.write(f'"scale up FSSS": {multiply_FSSS}\n')
     f.write(f'"calcTSNE": {calcTSNE}\n')    
     f.write(f'"SOM_dim": {SOM_dim}\n')
     f.write(f'"SOM_epochs": {SOM_epochs}\n')
