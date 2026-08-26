@@ -1,8 +1,25 @@
 # settings for AL samples
+
+# -- data loading paths --
+path_unsup_training: './data/training'
+path_sup_training: './data/training_supervised'
+path_preselect: './data/preselect'
+path_inference: './data/testing'
+path_models: './data/models'
+# -- data saving paths
+save_path_unsup_training: './results/unsupervised_training'
+save_path_sup_training: './results/supervised_training'
+save_path_preselect: './results/preselection'
+save_path_inference: './results/inference'
+
+# -- settings for preprocessing --
+# (still to be listed)
+
+# -- settings for training and inference --
 trainchannels: ['FS INT', 'SS INT', '45-CO']
 # AL1: ['FS INT', 'SS INT', '15-FITC', '13-PE', '34-ECD', '117-PC5.5', '33-PC7', '2-APC', 
 #  '7-APC-AF700', 'HLADR-PB', '45-CO'] 'APC-AF750'
-size_per_sample: 5000 # maximum size. refers to events/file(s), not /single samples of already concatenated files
+
 SOM_dim:
   - 20
   - 20
@@ -12,10 +29,21 @@ trafo_arcsinh: True # if False set cut offs for log trafo
 arcsinh_div: 300  # 150 to 300 recommended for Navios files
 channel_name_to_cutoff: {'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, 
   '7-APC-AF700': 200, '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200} # define if arcsinh = false
-lin_trafo_FSSS: false # applies linear trafo instead of log or arcsinh for FS and SS
-calcTSNE: True # Only relevant for unsupervised training. for inference, check compute_dim_red below
+lin_trafo_FSSS: False # applies linear trafo instead of log or arcsinh for FS and SS
+
+# -- only relevant for training --
+size_per_sample: 50000 # maximum size. refers to events/file(s), not /single samples of already concatenated files
+calcTSNE: True # Only relevant for unsupervised training
+
+# -- settings only relevant for preselection script ---
+size_pop_1: 1000 # maximum size per population
+size_pop_2: 7000
+size_pop_3: 8000
+include_predict_columns: False
+
 # -- the following only relevant for inference, irrelevant for training scripts --
-compute_dim_red: True # set to false for inference, if only tabular results are of interest
+max_rows_per_batch: 500000 # maximum number of lines to read in at once for inference. # 2 Mio is reasonable
+show_SOM: True # procedure is fast in inference
 calcchannels: ['13-PE', '34-ECD', '117-PC5.5', '33-PC7']
-calc_populations: [1,2,3,4,5] # Optional list of MLP population labels for which to compute calcchannel medians.
+calc_populations: [1,2,3] # Optional list of MLP population labels for which to compute calcchannel medians.
          # Set to null or omit to use all predicted populations.

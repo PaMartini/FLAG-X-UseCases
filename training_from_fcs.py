@@ -7,6 +7,7 @@
 # Sample_id channel is added by script to tag the different files
 # config parameters drawn from yaml files, select and configure suitable file 
 # works with FCS and csv (english version) files, tested and running 2026-08-09
+# not properly working with FS and SS trafo set to linear 2026-08-25
 
 import os
 import yaml
@@ -25,7 +26,7 @@ from flagx.gating import SOMClassifier
 from openTSNE import TSNE
 
 # --- selected Parameters for the workflow are drawn from YAML files, select and configure suitable file-------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_AL1.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_unsup_training')
@@ -258,6 +259,7 @@ with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
     f.write(f'"lin_trafo_FSSS": {lin_trafo_FSSS}\n')
+    f.write(f'"calcTSNE": {calcTSNE}\n')    
     f.write(f'"SOM_dim": {SOM_dim}\n')
     f.write(f'"SOM_epochs": {SOM_epochs}\n')
     f.write(f'"val_range": {val_range}\n')
