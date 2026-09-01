@@ -1,7 +1,23 @@
 # settings for analysis of B cell subpopulations
-trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD45']
-# Julia Scholz ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
-size_per_sample: 200000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
+
+# -- data loading paths --
+path_unsup_training: './data/training'
+path_sup_training: './data/training_supervised'
+path_preselect: './data/preselect'
+path_inference: './data/testing'
+path_models: './data/models'
+# -- data saving paths
+save_path_unsup_training: './results/unsupervised_training'
+save_path_sup_training: './results/supervised_training'
+save_path_preselect: './results/preselection'
+save_path_inference: './results/inference'
+
+# -- settings for preprocessing --
+# (still to be listed)
+
+# -- settings for training and inference --
+trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD38', 'CD45']
+# e.g. Julia Scholz ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
 SOM_dim:
   - 15
   - 15
@@ -11,14 +27,20 @@ trafo_arcsinh: True # if False set cut offs for log trafo
 arcsinh_div: 150  # 150 recommended for BD files
 # channel_name_to_cutoff: {'FS INT': 50000, etc} # define if arcsinh = false
 lin_trafo_FSSS: false # applies linear trafo instead of log or arcsinh for FS and SS
-calcTSNE: False # Only relevant for unsupervised training. for inference, check compute_dim_red below
-# -- the following only relevant for inference, irrelevant for training scripts --
-compute_dim_red: False # set to false for inference, if only tabular results are of interest
-calcchannels: ['CD20', 'CD45']
-calc_populations: [1,2,3,4,5] # Optional list of MLP population labels for which to compute calcchannel medians.
-         # Set to null or omit to use all predicted populations.
-# -- the following only relevant for preselection ---
-size_pop_1: 2000 # maximum size per population
-size_pop_2: 5000
+
+# -- only relevant for training --
+calcTSNE: False # (True is always recommended for unsupervised training)
+size_per_sample: 10000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
+
+# -- settings only relevant for preselection script ---
+size_pop_1: 1000 # maximum size per population
+size_pop_2: 7000
 size_pop_3: 8000
-include_predict_columns: True
+include_predict_columns: False
+
+# -- settings only relevant for inference, irrelevant for training scripts --
+max_rows_per_batch: 500000 # maximum number of lines to read in at once for inference. # 2 Mio is reasonable
+show_SOM: True # procedure is fast in inference
+calcchannels: ['CD20', 'CD45'] # if fluorescence intensity per channel and population. population sizes are always calculated
+calc_populations: [1,2,3] # Optional list of MLP population labels for which to compute calcchannel medians.
+         # Set to null or omit to use all predicted populations.

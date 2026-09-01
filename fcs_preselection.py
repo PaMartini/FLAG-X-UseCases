@@ -27,6 +27,8 @@ import anndata as ad
 config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
+save_path = config.get('save_path_preselect')
+data_path = config.get('path_preselect')
 trainchannels = config.get('trainchannels')
 size_per_sample = config.get('size_per_sample')  # Maximum number of events per sample to be used for model training
 SOM_dim = tuple(config.get('SOM_dim'))  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
@@ -44,11 +46,11 @@ size_pop_3 = config.get('size_pop_3')  # number of events from population 3 to k
 include_predict_columns = config.get('include_predict_columns')  # Whether to include prediction columns in the exported FCS file
 
 # --- Define path where results are saved to
-save_path = './results/workflow_supervised_inference'
+save_path = save_path
 os.makedirs(save_path, exist_ok=True)
 
 # Define path to inference data
-inference_data_path = './data/testing'
+inference_data_path = data_path
 
 # Get list of flow cytometry files in the data directory (prefer .fcs files, fall back to .csv for compatibility)
 inference_files = sorted([
@@ -225,7 +227,7 @@ for i, adata in enumerate(fdm.anndata_list_):
 # Create df_calc_results with population counts and downsampling fractions
 try:
     df_calc_results = pd.DataFrame(summary_rows)
-    summary_outfile = os.path.join(save_path, f'df_calc_results_{date_time_str}.csv')
+    summary_outfile = os.path.join(save_path, f'fcs_pop_preselect_results_{date_time_str}.csv')
     df_calc_results.to_csv(summary_outfile, sep=';', decimal=',', index=False)
     print(f'saved df_calc_results to {summary_outfile}')
 except Exception as e:
@@ -257,7 +259,7 @@ export_to_fcs(
 )
 
 timetotal = datetime.now()-timestart
-with open(os.path.join(save_path, f'fcs_inference_{date_time_str}.txt'), 'a') as f:
+with open(os.path.join(save_path, f'fcs_pop_preselect_{date_time_str}.txt'), 'a') as f:
     f.write(f'"files for preselction of cell populations" {date_time_str}: \n')
     for items in inference_files:
         f.write(items + "\n")

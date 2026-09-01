@@ -1,6 +1,6 @@
 # SOM training (unsupervised) for samples without population annotation. Fast tSNE and automated clustering (PARC) added. 
 # shuffle version of the training data used for model fitting. Dimensionality reductions and FCS export based on unshuffled data
-# read FCS or csv files, perform training, dim reduction, export compensated FCS and save models (optional)
+# read FCS or csv files, perform training, dim reduction, export compensated FCS and save SOM model (optional)
 # Before use, check number and names of channels is consistent across samples (use separate script)
 # if channels like sample_idx or population1 (from manual sampling) are included in the FCS or csv data 
   # they need to be scaled for export (if so, add to 'scale_columns')
@@ -28,6 +28,8 @@ from openTSNE import TSNE
 config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
+save_path = config.get('save_path_unsup_training')
+train_path = config.get('path_unsup_training')
 trainchannels = config.get('trainchannels')
 size_per_sample = config.get('size_per_sample')  # Maximum number of events per sample to be used for model training
 SOM_dim = tuple(config.get('SOM_dim'))  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
@@ -64,13 +66,13 @@ def validate_training_channels(adata_list, configured_channels):
     return list(configured_channels)
 
 # --- Define path where results are saved to
-save_path = './results/workflow_step_wise_unsupervised_som_training'
-save_path_data_handling = './results/workflow_step_wise_unsupervised_som_training/data_handling'
+save_path = save_path
+save_path_data_handling = os.path.join(save_path, 'data_handling')
 os.makedirs(save_path_data_handling, exist_ok=True)
 
 # --- Specify where training data is saved and specify the corresponding filenames
 # Define path to training data
-training_data_path = './data/training'
+training_data_path = train_path
 
 # Get list of flow cytometry files in the data directory (prefer .fcs files, fall back to .csv for compatibility)
 training_files = sorted([
@@ -203,11 +205,6 @@ if calcTSNE:
 time_d = datetime.now()
 timeSNE = time_d - time_c
 
-# --- UMAP
-# print ('computing UMAP...')
-# umap_model = UMAP(n_components=2, n_jobs=-1)  
-# x_umap = umap_model.fit_transform(x_train)
-
 # --- PARC clustering
 print('computing PARC clustering...')
 Parc1 = parc.PARC(x_train, jac_std_global=0.15)
@@ -217,8 +214,6 @@ parc_labels = Parc1.labels
 # Change back into sample-wise format (input format required by export function)
 x_soms_1 = [x_som[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
 x_soms_2 = [x_som[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
-# x_umaps_1 = [x_umap[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
-# x_umaps_2 = [x_umap[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
 if calcTSNE:
     x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
     x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
@@ -254,12 +249,12 @@ export_to_fcs(
     save_filenames=f'train_unsup_{date_time_str}.fcs'
 )
 timetotal = datetime.now()-timestart
-with open(os.path.join(save_path, f'fcs_training_{date_time_str}.txt'), 'a') as f:
+with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a') as f:
     f.write(f'"training_files and cell numbers" {date_time_str} \n')
     for index, row in sample_sizes_df.iterrows():
         f.write(f'"{row["sample"]}": {row["n_events"]}\n')
     f.write(f'"training channels": {trainchannels}\n')
-    f.write(f'"size max per sample": {size_per_sample}\n')
+    f.write(f'"large samples downsampled to": {size_per_sample}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
     f.write(f'"lin_trafo_FSSS": {lin_trafo_FSSS}\n')
