@@ -1,5 +1,5 @@
 # Data preprocessing
-# Last modified: 01-09-2026
+# Last modified: 02-09-2026
 
 # Reads a list of FCS or CSV files from input directory, checks the formatting and exports reformatted data into output directory as CSV.
 # Input (read from YAML config file):
