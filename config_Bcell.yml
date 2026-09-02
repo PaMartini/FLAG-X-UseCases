@@ -13,7 +13,7 @@ save_path_preselect: './results/preselection'
 save_path_inference: './results/inference'
 
 # -- settings for preprocessing --
-# (still to be listed)
+marker_channels: ['CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
 
 # -- settings for training and inference --
 trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD38', 'CD45']
