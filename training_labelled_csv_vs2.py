@@ -1,6 +1,6 @@
 # train models on population-labelled csv files, export fcs file with predictions and dimensionality reduction
 # currently only works for csv files, because we have no fcs with population labels.
-# save SOM and MLP models for prediction on new data.
+# saves SOM and MLP models for prediction on new data.
 # "shuffle" set to False in data loader, but added manually before model training. 
 # expects column 'population' which is used as label for supervised training.
 # csv files are concatenated and tagged in a new column 'sample_id' by the script

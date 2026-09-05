@@ -3,17 +3,19 @@
 # -- data loading paths --
 path_unsup_training: './data/training'
 path_sup_training: './data/training_supervised'
+path_concat: './data/concat_in'
 path_preselect: './data/preselect'
 path_inference: './data/testing'
 path_models: './data/models'
 # -- data saving paths
 save_path_unsup_training: './results/unsupervised_training'
 save_path_sup_training: './results/supervised_training'
+save_path_concat: './results/concat_out'
 save_path_preselect: './results/preselection'
 save_path_inference: './results/inference'
 
 # -- settings for preprocessing --
-# (still to be listed)
+csv_out_english: False
 
 # -- settings for training and inference --
 trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD38', 'CD45']
@@ -29,8 +31,8 @@ arcsinh_div: 150  # 150 recommended for BD files
 lin_trafo_FSSS: false # applies linear trafo instead of log or arcsinh for FS and SS
 
 # -- only relevant for training --
-calcTSNE: False # (True is always recommended for unsupervised training)
-size_per_sample: 10000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
+calcTSNE: True # (True is always recommended for unsupervised training)
+size_per_sample: 5000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
 
 # -- settings only relevant for preselection script ---
 size_pop_1: 1000 # maximum size per population

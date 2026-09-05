@@ -1,12 +1,13 @@
 # Concatenate CSV files containing different populations 
-# the script expects CSV files derived from one source FCS file in a way that each population is saved 
-# as a separate CSV file from gating in a previous step
+# the script expects CSV files derived from one source FCS file in a way that each population is saved...
+# ...to a separate CSV file from gating in a previous step
 # first part of the filenames is assumed to be the source FCS file name
 # second part of the filenames is assumed to be the population name
 # Example: 'Sample_ABC Bcell.csv', 'Sample_ABC Tcell.csv' and so on
+# FCS file name and population name may be separated by '_' or space
 # a new column indicating the population is added for later supervised training
-# duplicate events occuring in two different files (beinghavein been assigned to two different populations) 
-# will be automatically detected and the event with the higher population value will be removed
+# events occuring in two different files (assigned to two different populations by non-exclusive gating)... 
+# ...will be automatically detected and the event with the higher population value will be removed
 # CSV files from input directory are concatenated and exported as CSV (english or german style).
 # Last modified: 05-09-2026
 
@@ -62,12 +63,13 @@ for file in sorted(path_list):
     else:
         df = pd.read_csv(file, decimal=",", sep=";", low_memory=False)
 
-    # make sure sample identifier column is available (necessary for supervised training).
+    # make sure sample identifier column is available (necessary for supervised training)
     if "sample_idx" not in df.columns:
         if "sample_id" in df.columns:
             df = df.rename(columns={"sample_id": "sample_idx"})
         else:
-            df.insert(max(len(df.columns) - 1, 0), "sample_idx", 1)
+            df["sample_idx"] = 1
+    df["sample_idx"] = df.pop("sample_idx")
 
     # Add population column
     df.insert(len(df.columns), "population", population_dict[fname][pop_name])
@@ -84,7 +86,6 @@ pprint(population_dict)
 print("")
 
 ## Concatenate
-
 results = dict(zip(list(dfs_all.keys()), [None] * len(dfs_all)))
 
 # --- Check if columns are uniform across all dfs from same source
@@ -118,7 +119,6 @@ def remove_duplicates(res):
     return [result_filtered, result_dupl]
 
 ### Export result
-
 print("Exporting results to: " + OUT)
 
 out_sep = "," if CSV_out_english else ";"
