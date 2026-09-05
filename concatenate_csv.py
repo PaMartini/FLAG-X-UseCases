@@ -1,10 +1,14 @@
-# Concatenate CSV files for supervised training
-# Last modified: 02-09-2026
-
-# Reads a list of CSV files from input directory, concatenates all into a single dataframe and exports as CSV.
-# Input (read from YAML config file):
-#   - directory containing input CSV files
-
+# Concatenate CSV files containing different populations 
+# the script expects CSV files derived from one source FCS file in a way that each population is saved 
+# as a separate CSV file from gating in a previous step
+# first part of the filenames is assumed to be the source FCS file name
+# second part of the filenames is assumed to be the population name
+# Example: 'Sample_ABC Bcell.csv', 'Sample_ABC Tcell.csv' and so on
+# a new column indicating the population is added for later supervised training
+# duplicate events occuring in two different files (beinghavein been assigned to two different populations) 
+# will be automatically detected and the event with the higher population value will be removed
+# CSV files from input directory are concatenated and exported as CSV (english or german style).
+# Last modified: 05-09-2026
 
 import os
 import sys
@@ -15,17 +19,12 @@ from pprint import pprint
 from collections import Counter
 import csv
 
-
-
 ### Parse arguments
-
 with open("config_Bcell.yml", "r") as f:
     config = yaml.safe_load(f)
-
-INPUT_DIR = config["save_path_unsup_training"]
-OUT = config["path_sup_training"]
-
-
+INPUT_DIR = config["path_concat"]
+OUT = config["save_path_concat"]
+CSV_out_english = config["csv_out_english"]
 
 ### Import CSV-s
 
@@ -37,11 +36,10 @@ dfs_all = {}
 filename_list = []
 population_dict = {}
 
-
 for file in sorted(path_list):
-
     # Get source file and population name
     fname = file.split("/")[-1].split(".")[0]
+    fname = fname.replace(" ", "_")
     pop_name = fname.split("_")[-1]   # assume the last part of the file name to be the population name
     fname = fname[0:fname.rfind("_")]
     if fname not in filename_list:
@@ -49,7 +47,7 @@ for file in sorted(path_list):
     if fname not in population_dict.keys():
         population_dict[fname] = {}
     if pop_name not in population_dict[fname].keys():
-        population_dict[fname].update({pop_name : len(population_dict[fname])})
+        population_dict[fname].update({pop_name : len(population_dict[fname]) + 1})
 
     # Detect CSV formatting style (assume European by default)
     format_en = False
@@ -78,8 +76,6 @@ print("Successfully imported: " + str([len(i) for i in dfs_all.values()]) + " po
 pprint(population_dict)
 print("")
 
-
-
 ## Concatenate
 
 results = dict(zip(list(dfs_all.keys()), [None] * len(dfs_all)))
@@ -104,33 +100,34 @@ for file, pops in dfs_all.items():
     if False in cols_same:
         concat_warnings[file] = "col_mismatch"
 
-
 # --- Remove duplicate events
 def remove_duplicates(res):
+    # Prefer "Event ID" for duplicate detection, fall back to comparing all columns except "population" (which is only added during concatenation)
+    dupl_subset = ["Event ID"] if "Event ID" in res.columns else [c for c in res.columns if c != "population"]
     result_dupl = res.sort_values("population")
-    result_dupl["duplicated"] = result_dupl.duplicated(subset=["Event ID"])
+    result_dupl["duplicated"] = result_dupl.duplicated(subset=dupl_subset)
     result_dupl = result_dupl[result_dupl["duplicated"] == True]
-    result_filtered = res.sort_values("population").drop_duplicates("Event ID").sort_index()
+    result_filtered = res.sort_values("population").drop_duplicates(subset=dupl_subset).sort_index()
     return [result_filtered, result_dupl]
-
-
 
 ### Export result
 
 print("Exporting results to: " + OUT)
 
+out_sep = "," if CSV_out_english else ";"
+out_decimal = "." if CSV_out_english else ","
+
 for file, concat in results.items():
 
     # --- Save filtered dataset and list of duplicates (if any)
-    remove_duplicates(concat)[0].to_csv(os.path.join(OUT, f"{file}_concat.csv"), sep=",", decimal=".", index=False)
+    remove_duplicates(concat)[0].to_csv(os.path.join(OUT, f"{file}_concat.csv"), sep=out_sep, decimal=out_decimal, index=False)
     if (remove_duplicates(concat)[1].shape[0] > 0):
-        print("Duplicate event IDs found in ", file, ": ", remove_duplicates(concat)[1].shape[0], " out of ", concat.shape[0], " events")
-        print(remove_duplicates(concat)[1]["Event ID"])
-        remove_duplicates(concat)[1].to_csv(os.path.join(OUT, f"{file}_duplicates.csv"), sep=",", decimal=".", index=False)
+        print("Duplicate events found in ", file, ": ", remove_duplicates(concat)[1].shape[0], " out of ", concat.shape[0], " events")
+        remove_duplicates(concat)[1].to_csv(os.path.join(OUT, f"{file}_duplicates.csv"), sep=out_sep, decimal=out_decimal, index=False)
 
     # --- Save population name to ID mapping as CSV
     with open(os.path.join(OUT, f"{file}_populations.csv"), 'w', newline='') as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter=out_sep)
         writer.writerow(["population_ID", "population_name"])
         for pop_name, pop_id in population_dict[file].items():
             writer.writerow([pop_id, pop_name])
