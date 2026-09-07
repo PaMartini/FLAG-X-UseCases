@@ -1,0 +1,48 @@
+# settings for analysis of Plasma cell subpopulations (for Myeloma MRD)
+
+# -- data loading paths --
+path_unsup_training: './data/training'
+path_sup_training: './data/training_supervised'
+path_concat: './data/concat_in'
+path_preselect: './data/preselect'
+path_inference: './data/testing'
+path_models: './data/models'
+# -- data saving paths
+save_path_unsup_training: './results/unsupervised_training'
+save_path_sup_training: './results/supervised_training'
+save_path_concat: './results/concat_out'
+save_path_preselect: './results/preselection'
+save_path_inference: './results/inference'
+
+# -- settings for preprocessing --
+csv_out_english: False
+
+# -- settings for training and inference --
+trainchannels: ['FS INT', 'SS INT', '38-FITC', '56-PE', '45-PerCP', '19-PC7', '117-APC', '81-APC750', '138-BV421', '27-BV510']
+# R1 ['FS PEAK', 'FS INT', 'FS TOF', 'SS INT', '38-FITC', '56-PE', '45-PerCP', '19-PC7', '117-APC', '81-APC750', '138-BV421', '27-BV510', 'TIME']
+SOM_dim:
+  - 20
+  - 20
+SOM_epochs: 100
+val_range: [0, 1048576] # 262144 for BD, 1048576 for Coulter Navios
+trafo_arcsinh: False # if False set cut offs for log trafo
+arcsinh_div: 300 # 150 recommended for BD files
+channel_name_to_cutoff: {'FS INT': 50000, 'SS INT': 10000, '38-FITC': 1000, '56-PE': 300, '45-PerCP': 300, '19-PC7': 400, '117-APC': 100, '81-APC750': 300, '138-BV421': 300, '27-BV510': 300} # define if arcsinh = false 
+multiply_FSSS: false # upscaling for FS and SS
+
+# -- only relevant for training --
+calcTSNE: True # (True is always recommended for unsupervised training)
+size_per_sample: 40000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
+
+# -- settings only relevant for preselection script ---
+size_pop_1: 1000 # maximum size per population
+size_pop_2: 7000
+size_pop_3: 8000
+include_predict_columns: False
+
+# -- settings only relevant for inference, irrelevant for training scripts --
+max_rows_per_batch: 500000 # maximum number of lines to read in at once for inference. # 2 Mio is reasonable
+show_SOM: True # procedure is fast in inference
+calcchannels: ['CD20', 'CD45'] # if fluorescence intensity per channel and population. population sizes are always calculated
+calc_populations: [1,2,3] # Optional list of MLP population labels for which to compute calcchannel medians.
+         # Set to null or omit to use all predicted populations.

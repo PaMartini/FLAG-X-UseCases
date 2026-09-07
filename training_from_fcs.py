@@ -19,15 +19,17 @@ print('loading packages and paths...')
 timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%Hh%M")
 
-import pickle
+# import pickle
 import parc
 from flagx.io import FlowDataManager, export_to_fcs
 from flagx.gating import SOMClassifier
 # from flagx.dimred import UMAP
 from openTSNE import TSNE
 
-# --- selected Parameters for the workflow are drawn from YAML files, select and configure suitable file-------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_AL1.yml')
+# --- select YAML file! ---
+
+# selected Parameters for the workflow are drawn from YAML files
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Myelom.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_unsup_training')
@@ -42,7 +44,6 @@ trafo_arcsinh = config.get('trafo_arcsinh')
 arcsinh_div = config.get('arcsinh_div')
 channel_name_to_cutoff = config.get('channel_name_to_cutoff')
 multiply_FSSS = config.get('multiply_FSSS')
-lin_trafo_FSSS = config.get('lin_trafo_FSSS')
 calcTSNE = config.get('calcTSNE')
 
 # --- validate function: configured channel names must be present in each loaded input file
