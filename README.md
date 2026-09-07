@@ -1,33 +1,37 @@
-# FLAG-X tutorial
+# FLAG-X UseCases
 
 ## Resources
-- Package: [GitHub](https://github.com/bionetslab/FLAG-X/tree/main), [Bioconda](https://anaconda.org/channels/bioconda/packages/flagx/overview)
+- Flag-X Package: [GitHub](https://github.com/bionetslab/FLAG-X/tree/main), [Bioconda](https://anaconda.org/channels/bioconda/packages/flagx/overview)
 - Documentation: [Read the Docs](https://flag-x.readthedocs.io/en/latest/)
 
 ## General
-FLAG-X is used for the automatic classification of cell populations in flow cytometry data. The scripts provided here shows examples to create an effective workflow using this tool.
+FLAG-X is used for the automatic classification of cell populations in flow cytometry data. The scripts provided here show examples to create an effective workflow using this tool in combination with a conventional flow cytometry software (the authors use Kaluza).
 
 The files used for training and inference must contain the same channels and must have been acquired under roughly the same measurement conditions.
 
-## Recommende Workflow
+## Recommended Workflow
 
 ### Data Verification and Preparation
 
-**check_input** helps verify which channels are present in the files and whether they match across all files (currently only for CSV).
+**check_input** helps verify which channels are present in the files and whether they match across all files (script currently only available for CSV files).
 
 **csv_format** Assigns the same channel names to all files. If necessary, deletes individual channels that are not present in all files.
 
-**config_xxx.yml** files should be used to define parameters for one training-inference task. Depending on the task, not all channels of the fcs files are used for training-inference.
+**config_xxx.yml** files should be used to define parameters for one training-inference task. Depending on the task, not all channels of the fcs files are used for training and inference.
+
+**fcs_preselection** is a modification of fcs_inference described below. A simple training and inference loop applying gating with only few markers can be used to enrich cells of interest by differential downsampling in large fcs files.
 
 ### Training
 
-For the training, compile datasets that contain all expected cell types at least once in sufficient cell numbers. Not every sample needs to contain every cell type.
+For the training, compile datasets that contain all expected cell types ("populations") at least once in sufficient cell numbers. Not every sample needs to contain every cell type.
 
-**training_from_fcs** Script runs with fcs and csv. Concatenates the datasets, performs dimensionality reduction with SOM and TSNE, and performs automatic clustering using PARC. The raw data is exported as an FCS file along with the metadata thus calculated. 
+**training_from_fcs** Script runs with fcs and csv. Applies downsampling if needed, concatenates the datasets, performs dimensionality reduction with SOM and TSNE, and performs automatic clustering using PARC. The raw data is exported as an FCS file along with the metadata (SOM map, TSNE map, PARC labels) thus calculated. 
 
 The FCS file contining concatenated data from several samples can then be gated using flow cytometry software (we use Kaluza for the ease of color coding), with the calculated data (SOM, TSNE, PARC) facilitating the definition of the cell populations. Of course definition of cell populations in raw training files one by one is also possible.
 
-Export data from cell populations of interest population-wise and concatenate data into one large csv with a column indicating the cell populations as 1, 2, 3...
+Export data from cell populations of interest population-wise (one population per exported csv). Alternatively, if your software offers this option, export data with a column indicating the cell populations as 1, 2, 3...
+
+**concatenate_csv** concatenates population-specific csv into one large csv with a column indicating the cell populations. Naming conventions are given in the script.
 
 **training_labelled_csv** generates a SOM model and an MLP model on the compound csv containing the population annotations. An FCS is also provided for control purposes.
 
