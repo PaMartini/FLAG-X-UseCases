@@ -15,7 +15,13 @@ save_path_preselect: './results/preselection'
 save_path_inference: './results/inference'
 
 # -- settings for preprocessing --
+import_format_priority: ['fcs', 'lmd', 'csv'] # order: most to least preferred
+all_channels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
+delete_channels: ['FS PEAK']
+save_as_csv: False
 csv_out_english: False
+apply_comp: True
+export_raw_fcs: True
 
 # -- settings for training and inference --
 trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD38', 'CD45']
