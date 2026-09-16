@@ -8,6 +8,7 @@
 # a new column indicating the population is added for later supervised training
 # events occuring in two different files (assigned to two different populations by non-exclusive gating)... 
 # ...will be automatically detected and the event with the higher population value will be removed
+# column 'sample_idx' is renamed from 'sample_id' if present, if not it will be created with default value 1
 # CSV files from input directory are concatenated and exported as CSV (english or german style).
 # Last modified: 05-09-2026
 
@@ -19,9 +20,9 @@ import pandas as pd
 from pprint import pprint
 from collections import Counter
 import csv
-
-### Parse arguments
-with open("config_Bcell.yml", "r") as f:
+  
+###      define YAML file to parse arguments     ###
+with open("config_Tcell.yml", "r") as f:
     config = yaml.safe_load(f)
 INPUT_DIR = config["path_concat"]
 OUT = config["save_path_concat"]
@@ -79,10 +80,18 @@ for file in sorted(path_list):
     else:
         dfs_all[fname].update({pop_name: df})
 
+for fname, populations in population_dict.items():
+    population_dict[fname] = {
+        pop_name: population_id
+        for population_id, pop_name in enumerate(sorted(populations, key=str.casefold), start=1)
+    }
+    for pop_name, df in dfs_all[fname].items():
+        df["population"] = population_dict[fname][pop_name]
+
 filenames_unique = set(filename_list)
 
 print("Successfully imported: " + str([len(i) for i in dfs_all.values()]) + " populations from " + str(len(dfs_all.keys())) + " sources")
-pprint(population_dict)
+pprint({fname: dict(sorted(populations.items(), key=lambda item: item[1])) for fname, populations in population_dict.items()}, sort_dicts=False)
 print("")
 
 ## Concatenate
