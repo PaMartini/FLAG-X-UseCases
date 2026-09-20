@@ -1,0 +1,58 @@
+# settings for analysis of T cell subpopulations (Sam)
+
+# -- data loading paths --
+path_unsup_training: './data/training'
+path_sup_training: './data/training_supervised'
+path_concat: './data/concat_in'
+path_preselect: './data/preselect'
+path_inference: './data/testing'
+path_models: './data/models'
+# -- data saving paths
+save_path_unsup_training: './results/unsupervised_training'
+save_path_sup_training: './results/supervised_training'
+save_path_concat: './results/concat_out'
+save_path_preselect: './results/preselection'
+save_path_inference: './results/inference'
+
+# -- settings for preprocessing --
+import_format_priority: ['fcs', 'lmd', 'csv'] # order: most to least preferred
+all_channels: ['FSC-A', 'FSC-H', 'FSC-W', 'SSC-A', 'SSC-H', 'SSC-W', 'Ki67', '7AAD + CD14 + CD33',
+ 'CD56', 'CD25', 'CX3CR1', 'Granzyme B', 'CD28', 'CXCR4', 'CD127', 'CD45RA', 'CD27', 
+ 'CD4', 'CD8', 'CD3', 'TCRab', 'CCR9', 'Perforin', 'TIME', 'sample_idx', 'population']
+delete_channels: []
+save_as_csv: False
+csv_out_english: True
+apply_comp: True
+export_raw_fcs: False
+
+# -- settings for training and inference --
+trainchannels: ['FSC-A', 'SSC-A', '7AAD + CD14 + CD33', 'CD3']
+# e.g. 
+SOM_dim:
+  - 25
+  - 25
+SOM_epochs: 100
+val_range: [0, 262144] # 262144 for BD, 1048576 for Coulter Navios
+trafo_arcsinh: False # if False set cut offs for log trafo
+arcsinh_div: 150  # 150 recommended for BD files
+channel_name_to_cutoff: {'FSC-A': 15000, 'SSC-A': 2500, '7AAD + CD14 + CD33': 30, 'CD3': 30} # define if arcsinh = false
+multiply_FSSS: True # upscaling for FS and SS
+upscale_val: {'FSsub': 3.7, 'FSmult': 3, 'SSsub': 2.5, 'SSmult': 2}
+size_per_sample: 500000 # maximum events per file(s), not per single samples of already concatenated files
+
+# -- only relevant for training --
+calcTSNE: True # (True is always recommended for unsupervised training)
+
+# -- settings only relevant for preselection script ---
+size_pop_1: 6000 # maximum size per population
+size_pop_2: 3000
+size_pop_3: 0 # set to 0 if not needed
+include_predict_columns: False
+compute_dim_red: False
+
+# -- settings only relevant for inference, irrelevant for training scripts --
+max_rows_per_batch: 500000 # maximum number of lines to read in at once for inference. # 2 Mio is reasonable
+show_SOM: True # procedure is fast in inference
+calcchannels: [] # if fluorescence intensity per channel and population. population sizes are always calculated
+calc_populations: [1,2,3] # Optional list of MLP population labels for which to compute calcchannel medians.
+         # Set to null or omit to use all predicted populations.
