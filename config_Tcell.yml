@@ -26,8 +26,11 @@ apply_comp: True
 export_raw_fcs: False
 
 # -- settings for training and inference --
-trainchannels: ['FSC-A', 'SSC-A', '7AAD + CD14 + CD33', 'CD3']
-# e.g. 
+size_per_sample: 500000 # maximum events per file(s), not per single samples of already concatenated files
+trainchannels: ['FSC-A', 'SSC-A', 'Ki67', '7AAD + CD14 + CD33', 'CD56', 'CD25', 'CX3CR1', 'Granzyme B', 'CD28', 'CXCR4', 
+  'CD127', 'CD45RA', 'CD27', 'CD4', 'CD8', 'CD3', 'TCRab', 'CCR9', 'Perforin']
+# e.g. ['FSC-A', 'SSC-A', 'Ki67', '7AAD + CD14 + CD33', 'CD56', 'CD25', 'CX3CR1', 'Granzyme B', 'CD28', 'CXCR4', 
+# 'CD127', 'CD45RA', 'CD27', 'CD4', 'CD8', 'CD3', 'TCRab', 'CCR9', 'Perforin']
 SOM_dim:
   - 25
   - 25
@@ -35,17 +38,19 @@ SOM_epochs: 100
 val_range: [0, 262144] # 262144 for BD, 1048576 for Coulter Navios
 trafo_arcsinh: False # if False set cut offs for log trafo
 arcsinh_div: 150  # 150 recommended for BD files
-channel_name_to_cutoff: {'FSC-A': 15000, 'SSC-A': 2500, '7AAD + CD14 + CD33': 30, 'CD3': 30} # define if arcsinh = false
+channel_name_to_cutoff: {'FSC-A': 15000, 'SSC-A': 2500, 'Ki67': 50, '7AAD + CD14 + CD33': 30, 'CD3': 100, 'CD56': 50, 
+  'CD25': 300, 'CX3CR1': 50, 'Granzyme B': 50, 'CD28': 50, 'CXCR4': 50, 'CD127': 50, 'CD45RA': 100, 'CD27': 100, 'CD4': 100, 
+  'CD8': 30, 'CD3': 30, 'TCRab': 100, 'CCR9': 50, 'Perforin': 300} # define if arcsinh = false
 multiply_FSSS: True # upscaling for FS and SS
 upscale_val: {'FSsub': 3.7, 'FSmult': 3, 'SSsub': 2.5, 'SSmult': 2}
-size_per_sample: 500000 # maximum events per file(s), not per single samples of already concatenated files
 
 # -- only relevant for training --
 calcTSNE: True # (True is always recommended for unsupervised training)
+calcPARC: True # recommended if population selection is planned
 
 # -- settings only relevant for preselection script ---
-size_pop_1: 6000 # maximum size per population
-size_pop_2: 3000
+size_pop_1: 12000 # maximum size per population
+size_pop_2: 4000
 size_pop_3: 0 # set to 0 if not needed
 include_predict_columns: False
 compute_dim_red: False

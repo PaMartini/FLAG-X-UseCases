@@ -20,7 +20,6 @@ timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%Hh%M")
 
 # import pickle
-import parc
 from flagx.io import FlowDataManager, export_to_fcs
 from flagx.gating import SOMClassifier
 # from flagx.dimred import UMAP
@@ -29,7 +28,7 @@ from openTSNE import TSNE
 # --- select YAML file! ---
 
 # selected Parameters for the workflow are drawn from YAML files
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Myelom.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Tcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_unsup_training')
@@ -45,6 +44,7 @@ arcsinh_div = config.get('arcsinh_div')
 channel_name_to_cutoff = config.get('channel_name_to_cutoff')
 multiply_FSSS = config.get('multiply_FSSS')
 calcTSNE = config.get('calcTSNE')
+calcPARC = config.get('calcPARC')
 
 # --- validate function: configured channel names must be present in each loaded input file
 def validate_training_channels(adata_list, configured_channels):
@@ -212,10 +212,14 @@ time_d = datetime.now()
 timeSNE = time_d - time_c
 
 # --- PARC clustering
-print('computing PARC clustering...')
-Parc1 = parc.PARC(x_train, jac_std_global=0.15)
-Parc1.run_PARC() # run the clustering
-parc_labels = Parc1.labels
+parc_labels = np.empty(0, dtype=int)
+if calcPARC:
+    import parc
+
+    print('computing PARC clustering...')
+    Parc1 = parc.PARC(x_train, jac_std_global=0.15)
+    Parc1.run_PARC() # run the clustering
+    parc_labels = Parc1.labels
 
 # Change back into sample-wise format (input format required by export function)
 x_soms_1 = [x_som[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
@@ -223,24 +227,21 @@ x_soms_2 = [x_som[starting_indices[i]: starting_indices[i + 1], 1] for i in rang
 if calcTSNE:
     x_tsnes_1 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 0] for i in range(len(num_events))]
     x_tsnes_2 = [x_tsne[starting_indices[i]: starting_indices[i + 1], 1] for i in range(len(num_events))]
-parc_1 = [parc_labels[starting_indices[i]: starting_indices[i + 1]] for i in range(len(num_events))]
 
 # Export to FCS
+add_columns = [x_soms_1, x_soms_2]
+add_columns_names = ['SOM_1', 'SOM_2']
+scale_columns = ['SOM_1', 'SOM_2']
 if calcTSNE:
-    add_columns = [
-        x_soms_1, x_soms_2,
-        x_tsnes_1, x_tsnes_2,
-        parc_1
-    ]
-    add_columns_names = ['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'PARC_labels']
-    scale_columns = ['SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'PARC_labels']
-else:
-    add_columns = [
-        x_soms_1, x_soms_2,
-        parc_1
-    ]
-    add_columns_names = ['SOM_1', 'SOM_2', 'PARC_labels']
-    scale_columns = ['SOM_1', 'SOM_2', 'PARC_labels']
+    add_columns.extend([x_tsnes_1, x_tsnes_2])
+    add_columns_names.extend(['TSNE_1', 'TSNE_2'])
+    scale_columns.extend(['TSNE_1', 'TSNE_2'])
+if calcPARC:
+    add_columns.append([
+        parc_labels[starting_indices[i]: starting_indices[i + 1]] for i in range(len(num_events))
+    ])
+    add_columns_names.append('PARC_labels')
+    scale_columns.append('PARC_labels')
 
 # Export the training samples in one concatenated file, compensated raw data
 export_to_fcs(
@@ -265,6 +266,7 @@ with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a
     f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
     f.write(f'"scale up FSSS": {multiply_FSSS}\n')
     f.write(f'"calcTSNE": {calcTSNE}\n')    
+    f.write(f'"calcPARC": {calcPARC}\n')
     f.write(f'"SOM_dim": {SOM_dim}\n')
     f.write(f'"SOM_epochs": {SOM_epochs}\n')
     f.write(f'"val_range": {val_range}\n')

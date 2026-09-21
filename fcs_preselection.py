@@ -21,7 +21,7 @@ date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 
 from flagx.io import FlowDataManager, export_to_fcs
 from flagx.gating import SOMClassifier, MLPClassifier
-from openTSNE import TSNE
+
 import anndata as ad
 
 # --- select YAML file! ---
@@ -53,6 +53,9 @@ include_predict_columns = config.get('include_predict_columns')  # Whether to in
 # --- Define path where results are saved to
 save_path = save_path
 os.makedirs(save_path, exist_ok=True)
+
+if compute_dim_red:
+    from openTSNE import TSNE
 
 # Define path to inference data
 inference_data_path = data_path

@@ -24,8 +24,9 @@ from flagx.io import FlowDataManager, export_to_fcs
 from flagx.gating import SOMClassifier, MLPClassifier
 from openTSNE import TSNE
 
-# --- selected Parameters for the workflow are drawn from YAML files, select and configure suitable file-------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
+# --- Define path to YAML!
+# --- selected Parameters for the workflow are drawn from YAML files -------
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Tcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 training_data_path = config.get('path_sup_training')  # Path to the directory where the training data is stored
@@ -39,7 +40,7 @@ val_range = tuple(val_range_list)
 trafo_arcsinh = config.get('trafo_arcsinh')
 arcsinh_div = config.get('arcsinh_div')
 channel_name_to_cutoff = config.get('channel_name_to_cutoff') # if log trafo is used
-lin_trafo_FSSS = config.get('lin_trafo_FSSS') # if lintrafo is applied to FS INT and SS INT
+multiply_FSSS = config.get('multiply_FSSS') # if FS INT and SS INT should be scaled up
 calcTSNE = config.get('calcTSNE') 
 
 # --- Define path where results are saved to
@@ -95,13 +96,13 @@ else:
         flavour='log10_w_custom_cutoffs', save_raw_to_layer='no_trafo', **preprocessing_kwargs
         )
 
-# Optional: 'FS INT' and 'SS INT' will be transformed by division (see YAML config)    
-if lin_trafo_FSSS:
+# Optional: 'FS INT' and 'SS INT' will be scaled up (makes only sense if the trafo is set to log, not arcsinh)     
+if multiply_FSSS:
     for adata in fdm.anndata_list_:
         if 'FS INT' in adata.var_names:
-            adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 300000
+            adata[:, 'FS INT'].X = (adata[:, 'FS INT'].X - 3.3) * 2.5
         if 'SS INT' in adata.var_names:
-            adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 300000
+            adata[:, 'SS INT'].X = (adata[:, 'SS INT'].X - 1.8) * 1.6
 
 # --- Downsample each sample to a target number of events
 fdm.sample_wise_downsampling(data_set='all', target_num_events=size_per_sample)
@@ -257,7 +258,7 @@ with open(os.path.join(save_path, f'csv_supervised_training_{date_time_str}.txt'
     f.write(f'"number of populations for training": {int(np.max(y_train))}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
-    f.write(f'"lin_trafo_FSSS": {lin_trafo_FSSS}\n')
+    f.write(f'"upscale_FSSS": {multiply_FSSS}\n')
     f.write(f'"SOM_dim": {SOM_dim}\n')
     f.write(f'"SOM_epochs": {SOM_epochs}\n')
     f.write(f'"value range of fcs": {val_range}\n')

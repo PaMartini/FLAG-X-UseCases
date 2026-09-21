@@ -3,12 +3,14 @@
 # -- data loading paths --
 path_unsup_training: './data/training'
 path_sup_training: './data/training_supervised'
+path_concat: './data/concat_in'
 path_preselect: './data/preselect'
 path_inference: './data/testing'
 path_models: './data/models'
 # -- data saving paths
 save_path_unsup_training: './results/unsupervised_training'
 save_path_sup_training: './results/supervised_training'
+save_path_concat: './results/concat_out'
 save_path_preselect: './results/preselection'
 save_path_inference: './results/inference'
 
@@ -16,10 +18,10 @@ save_path_inference: './results/inference'
 # (still to be listed)
 
 # -- settings for training and inference --
-trainchannels: ['FS INT', 'SS INT', '45-CO']
+size_per_sample: 500000 # maximum events per file(s), not per single samples of already concatenated files
+trainchannels: ['FS INT', 'SS INT', '45-CO', '117-PC5.5', '34-ECD']
 # AL1: ['FS INT', 'SS INT', '15-FITC', '13-PE', '34-ECD', '117-PC5.5', '33-PC7', '2-APC', 
 #  '7-APC-AF700', 'HLADR-PB', '45-CO'] 'APC-AF750'
-
 SOM_dim:
   - 25
   - 25
@@ -29,12 +31,12 @@ trafo_arcsinh: False # if False set cut offs for log trafo
 arcsinh_div: 300  # 150 to 300 recommended for Navios files
 channel_name_to_cutoff: {'FS INT': 50000, 'SS INT': 10000, '15-FITC': 100, '13-PE': 300, '33-PC7': 200, '2-APC': 200, 
   '7-APC-AF700': 200, '34-ECD': 200, '117-PC5.5': 200, 'HLADR-PB': 200, '45-CO': 200} # define if arcsinh = false
-lin_trafo_FSSS: False # applies linear trafo instead of log or arcsinh for FS and SS
 multiply_FSSS: True
+upscale_val: {'FSsub': 3.8, 'FSmult': 2.8, 'SSsub': 2.9, 'SSmult': 2.1}
 
 # -- only relevant for training --
-size_per_sample: 30000 # maximum size. refers to events/file(s), not /single samples of already concatenated files
-calcTSNE: True # Only relevant for unsupervised training
+calcTSNE: True # (True is always recommended for unsupervised training)
+calcPARC: True # recommended if population selection is planned
 
 # -- settings only relevant for preselection script ---
 size_pop_1: 1000 # maximum size per population
