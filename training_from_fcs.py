@@ -28,7 +28,7 @@ from openTSNE import TSNE
 # --- select YAML file! ---
 
 # selected Parameters for the workflow are drawn from YAML files
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Tcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_unsup_training')
@@ -43,6 +43,8 @@ trafo_arcsinh = config.get('trafo_arcsinh')
 arcsinh_div = config.get('arcsinh_div')
 channel_name_to_cutoff = config.get('channel_name_to_cutoff')
 multiply_FSSS = config.get('multiply_FSSS')
+upscale_val_list = config.get('upscale_val') # only applied if multiply_FSSS is True
+upscale_val = tuple(upscale_val_list)
 calcTSNE = config.get('calcTSNE')
 calcPARC = config.get('calcPARC')
 
@@ -137,9 +139,9 @@ else:
 if multiply_FSSS:
     for adata in fdm.anndata_list_:
         if 'FS INT' in adata.var_names:
-            adata[:, 'FS INT'].X = (adata[:, 'FS INT'].X - 4) * 3
+            adata[:, 'FS INT'].X = (adata[:, 'FS INT'].X - upscale_val['FSsub']) * upscale_val['FSmult']
         if 'SS INT' in adata.var_names:
-            adata[:, 'SS INT'].X = (adata[:, 'SS INT'].X - 3) * 2
+            adata[:, 'SS INT'].X = (adata[:, 'SS INT'].X - upscale_val['SSsub']) * upscale_val['SSmult']    
 
 # --- Downsample each sample to a target number of events
 fdm.sample_wise_downsampling(data_set='all', target_num_events=size_per_sample)

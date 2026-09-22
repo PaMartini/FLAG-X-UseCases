@@ -26,7 +26,7 @@ apply_comp: True
 export_raw_fcs: False
 
 # -- settings for training and inference --
-size_per_sample: 500000 # maximum events per file(s), not per single samples of already concatenated files
+size_per_sample: 1500000 # maximum events per file(s), not per single samples of already concatenated files
 trainchannels: ['FSC-A', 'SSC-A', 'Ki67', '7AAD + CD14 + CD33', 'CD56', 'CD25', 'CX3CR1', 'Granzyme B', 'CD28', 'CXCR4', 
   'CD127', 'CD45RA', 'CD27', 'CD4', 'CD8', 'CD3', 'TCRab', 'CCR9', 'Perforin']
 # e.g. ['FSC-A', 'SSC-A', 'Ki67', '7AAD + CD14 + CD33', 'CD56', 'CD25', 'CX3CR1', 'Granzyme B', 'CD28', 'CXCR4', 
@@ -49,8 +49,8 @@ calcTSNE: True # (True is always recommended for unsupervised training)
 calcPARC: True # recommended if population selection is planned
 
 # -- settings only relevant for preselection script ---
-size_pop_1: 12000 # maximum size per population
-size_pop_2: 4000
+size_pop_1: 20000 # maximum size per population
+size_pop_2: 5000
 size_pop_3: 0 # set to 0 if not needed
 include_predict_columns: False
 compute_dim_red: False

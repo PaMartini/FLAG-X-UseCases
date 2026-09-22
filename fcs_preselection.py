@@ -26,7 +26,7 @@ import anndata as ad
 
 # --- select YAML file! ---
 # configure suitable file, parameters identical to training!
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Tcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_preselect')

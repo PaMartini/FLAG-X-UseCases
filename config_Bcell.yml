@@ -15,20 +15,21 @@ save_path_preselect: './results/preselection'
 save_path_inference: './results/inference'
 
 # -- settings for preprocessing --
-csv_out_english: False
+csv_out_english: True
 
 # -- settings for training and inference --
 size_per_sample: 500000 # maximum size. refers to events per file(s), not per single samples of already concatenated files
-trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD38', 'CD45']
+trainchannels: ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
 # e.g. Julia Scholz ['FSC-A', 'SSC-A', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27']
 SOM_dim:
-  - 15
-  - 15
+  - 25
+  - 25
 SOM_epochs: 100
 val_range: [0, 262144] # 262144 for BD, 1048576 for Coulter Navios
-trafo_arcsinh: True # if False set cut offs for log trafo
+trafo_arcsinh: False # if False set cut offs for log trafo
 arcsinh_div: 150  # 150 recommended for BD files
-channel_name_to_cutoff: {'FSC-A': 15000, 'SSC-A': 2500} # define if trofo_arcsinh = false
+channel_name_to_cutoff: {'FSC-A': 15000, 'SSC-A': 2500, 'CD19': 30, 'CD3': 50, 'CD20': 50, 'CD45': 100, 'CD38': 50, 'CD10': 200,
+ 'IgD': 100, 'CD24': 50, 'CD27': 30} # define if trafo_arcsinh = false
 multiply_FSSS: True # upscaling for FS and SS
 upscale_val: {'FSsub': 3.7, 'FSmult': 3, 'SSsub': 2.5, 'SSmult': 2}
 
@@ -37,9 +38,9 @@ calcTSNE: True # (True is always recommended for unsupervised training)
 calcPARC: True # recommended if population selection is planned
 
 # -- settings only relevant for preselection script ---
-size_pop_1: 1000 # maximum size per population
-size_pop_2: 7000
-size_pop_3: 8000
+size_pop_1: 10000 # maximum size per population
+size_pop_2: 1000
+size_pop_3: 2000
 include_predict_columns: False
 
 # -- settings only relevant for inference, irrelevant for training scripts --

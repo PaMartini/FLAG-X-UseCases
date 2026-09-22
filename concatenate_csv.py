@@ -22,7 +22,7 @@ from collections import Counter
 import csv
   
 ###      define YAML file to parse arguments     ###
-with open("config_Tcell.yml", "r") as f:
+with open("config_Bcell.yml", "r") as f:
     config = yaml.safe_load(f)
 INPUT_DIR = config["path_concat"]
 OUT = config["save_path_concat"]

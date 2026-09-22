@@ -13,7 +13,7 @@ timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%Hh%M")
 
 csv_path = './data/training'
-final_channels = ['FS INT', 'SS INT', '38-FITC', '56-PE', '45-PerCP', '19-PC7', '117-APC', '81-APC750', '138-BV421', '27-BV510', 'TIME']
+final_channels = ['FSC-A', 'FSC-H', 'FSC-W', 'SSC-A', 'SSC-H', 'SSC-W', 'CD19', 'CD3', 'CD20', 'CD45', 'CD38', 'CD10', 'IgD', 'CD24', 'CD27', 'TIME']
 # Imst set: 'FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '14-APC700', '8-PB', '45-CO', 'TIME', 'population'
 #  AL1 Set: 'FS INT', 'SS INT', '15-FITC', '13-PE', '34-ECD', '117-PC5.5', '33-PC7', '2-APC', 
 # '7-APC-AF700', 'APC-AF750', 'HLADR-PB', '45-CO', 'TIME, 
