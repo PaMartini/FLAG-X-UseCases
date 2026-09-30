@@ -25,8 +25,9 @@ from flagx.gating import SOMClassifier, MLPClassifier
 import anndata as ad
 
 # --- select YAML file! ---
+
 # configure suitable file, parameters identical to training!
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Tcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_preselect')
@@ -234,7 +235,9 @@ for i, fn in enumerate(inference_files):
         save_filenames=[f'preselect_{os.path.splitext(fn)[0]}.fcs'],
     )
 
-    summary_row = {'sample': sample_name}
+    summary_row: dict[str, object] = {'sample': sample_name}
+    for label, limit in population_limits.items():
+        summary_row[f'mlp_{label}_population_limit'] = limit
     for label in sorted(population_counts):
         summary_row[f'mlp_{label}'] = population_counts[label]
         summary_row[f'mlp_{label}_downsample_factor'] = population_downsample_factors[label]
@@ -252,7 +255,7 @@ for i, fn in enumerate(inference_files):
         del x_som_sample, x_tsne_sample, tsne_model
     gc.collect()
 
-# Create df_calc_results with population counts and downsampling fractions
+# Create df_calc_results with population limits, counts, and downsampling fractions
 try:
     df_calc_results = pd.DataFrame(summary_rows)
     summary_outfile = os.path.join(save_path, f'fcs_pop_preselect_results_{date_time_str}.csv')
@@ -274,6 +277,7 @@ with open(os.path.join(save_path, f'fcs_pop_preselect_{date_time_str}.txt'), 'a'
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
     f.write(f'"multiply_FSSS": {multiply_FSSS}\n')
+    f.write(f'"FSSS upscale factor": {upscale_val_list}\n')
     f.write (f'"dimreduction generated": {compute_dim_red}\n')
     f.write(f'"population statistics and downsampling factors provided in file df_calc_results_{date_time_str}.csv"\n')
     f.write(f'"one downsampled FCS output is exported per input file, processed and saved one file at a time (compensated data)" \n')

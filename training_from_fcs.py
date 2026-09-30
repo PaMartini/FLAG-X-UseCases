@@ -7,9 +7,10 @@
 # Sample_id channel is added by script to tag the different files
 # config parameters drawn from yaml files, select and configure suitable file 
 # works with FCS and csv (english version) files, tested and running 2026-08-09
-# not properly working with FS and SS trafo set to linear 2026-08-25
+# FS and SS upscale included 2026-09-21
 
 import os
+import re
 import yaml
 import numpy as np
 import pandas as pd
@@ -28,7 +29,7 @@ from openTSNE import TSNE
 # --- select YAML file! ---
 
 # selected Parameters for the workflow are drawn from YAML files
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Tcell.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_unsup_training')
@@ -80,11 +81,23 @@ os.makedirs(save_path_data_handling, exist_ok=True)
 # Define path to training data
 training_data_path = train_path
 
+# Split digit runs so filenames sort naturally (for example, sample2 before sample10).
+def natural_sort_key(filename):
+    parts = re.split(r'(\d+)', filename)
+    return (
+        tuple((1, int(part)) if part.isdigit() else (0, part.casefold()) for part in parts),
+        filename.casefold(),
+        filename,
+    )
+
 # Get list of flow cytometry files in the data directory (prefer .fcs files, fall back to .csv for compatibility)
-training_files = sorted([
-    fn for fn in os.listdir(training_data_path)
-    if fn.lower().endswith(('.fcs', '.csv'))
-])
+training_files = sorted(
+    (
+        fn for fn in os.listdir(training_data_path)
+        if fn.lower().endswith(('.fcs', '.csv'))
+    ),
+    key=natural_sort_key,
+)
 
 if not training_files:
     raise FileNotFoundError(f'No training files found in {training_data_path}')
@@ -260,13 +273,19 @@ export_to_fcs(
 timetotal = datetime.now()-timestart
 with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a') as f:
     f.write(f'"training_files and cell numbers" {date_time_str} \n')
-    for index, row in sample_sizes_df.iterrows():
-        f.write(f'"{row["sample"]}": {row["n_events"]}\n')
+    sample_sizes_by_sample = sample_sizes_df.set_index('sample')['n_events']
+    for filename in training_files:
+        if filename in sample_sizes_by_sample.index:
+            f.write(f'"{filename}": {sample_sizes_by_sample[filename]}\n')
+    for summary in ('std', 'mean', 'total'):
+        if summary in sample_sizes_by_sample.index:
+            f.write(f'"{summary}": {sample_sizes_by_sample[summary]}\n')
     f.write(f'"training channels": {trainchannels}\n')
     f.write(f'"large samples downsampled to": {size_per_sample}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
     f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
     f.write(f'"scale up FSSS": {multiply_FSSS}\n')
+    f.write(f'"FSSS upscale factor": {upscale_val_list}\n')
     f.write(f'"calcTSNE": {calcTSNE}\n')    
     f.write(f'"calcPARC": {calcPARC}\n')
     f.write(f'"SOM_dim": {SOM_dim}\n')
