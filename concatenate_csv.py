@@ -5,28 +5,35 @@
 # second part of the filenames is assumed to be the population name
 # Example: 'Sample_ABC Bcell.csv', 'Sample_ABC Tcell.csv' and so on
 # FCS file name and population name may be separated by '_' or space
-# a new column indicating the population is added for later supervised training
+# a new column indicating the population as an integer is added for later supervised training
 # events occuring in two different files (assigned to two different populations by non-exclusive gating)... 
-# ...will be automatically detected and the event with the higher population value will be removed
+# ...will be automatically detected and the event with the higher population integer will be removed
 # column 'sample_idx' is renamed from 'sample_id' if present, if not it will be created with default value 1
 # CSV files from input directory are concatenated and exported as CSV (english or german style).
-# Last modified: 05-09-2026
+# an optional heatmap can be calculated 
+# Last modified: 09-30-2026
 
 import os
 import sys
 import yaml
 from glob import glob
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from pprint import pprint
 from collections import Counter
 import csv
   
 ###      define YAML file to parse arguments     ###
-with open("config_Bcell.yml", "r") as f:
+with open("config_Tcell.yml", "r") as f:
     config = yaml.safe_load(f)
 INPUT_DIR = config["path_concat"]
 OUT = config["save_path_concat"]
 CSV_out_english = config["csv_out_english"]
+calc_heatmap = config["calc_heatmap"]
+heatmap_channels = config["trainchannels"]
+channel_name_to_cutoff = config["channel_name_to_cutoff"]
 
 ### Import CSV-s
 
@@ -133,13 +140,18 @@ print("Exporting results to: " + OUT)
 out_sep = "," if CSV_out_english else ";"
 out_decimal = "." if CSV_out_english else ","
 
+filtered_all = []
+
 for file, concat in results.items():
+    filtered, duplicates = remove_duplicates(concat)
+    id_to_name = {v: k for k, v in population_dict[file].items()}
+    filtered_all.append(filtered.assign(population_name=filtered["population"].map(id_to_name)))
 
     # --- Save filtered dataset and list of duplicates (if any)
-    remove_duplicates(concat)[0].to_csv(os.path.join(OUT, f"{file}_concat.csv"), sep=out_sep, decimal=out_decimal, index=False)
-    if (remove_duplicates(concat)[1].shape[0] > 0):
-        print("Duplicate events found in ", file, ": ", remove_duplicates(concat)[1].shape[0], " out of ", concat.shape[0], " events")
-        remove_duplicates(concat)[1].to_csv(os.path.join(OUT, f"{file}_duplicates.csv"), sep=out_sep, decimal=out_decimal, index=False)
+    filtered.to_csv(os.path.join(OUT, f"{file}_concat.csv"), sep=out_sep, decimal=out_decimal, index=False)
+    if duplicates.shape[0] > 0:
+        print("Duplicate events found in ", file, ": ", duplicates.shape[0], " out of ", concat.shape[0], " events")
+        duplicates.to_csv(os.path.join(OUT, f"{file}_duplicates.csv"), sep=out_sep, decimal=out_decimal, index=False)
 
     # --- Save population name to ID mapping as CSV
     with open(os.path.join(OUT, f"{file}_populations.csv"), 'w', newline='') as f:
@@ -147,6 +159,31 @@ for file, concat in results.items():
         writer.writerow(["population_ID", "population_name"])
         for pop_name, pop_id in population_dict[file].items():
             writer.writerow([pop_id, pop_name])
+
+if calc_heatmap:
+    # --- Median per population and channel over all datasets (grouped by name, as IDs are assigned per source file)
+    medians = pd.concat(filtered_all).groupby("population_name")[heatmap_channels].median()
+    pop_size = pd.concat(filtered_all)["population_name"].value_counts()
+    medians.index.name = "population"
+    # Values below the channel cutoff are set to the cutoff before log10
+    medians = np.log10(medians.clip(lower=pd.Series(channel_name_to_cutoff).reindex(medians.columns), axis=1))
+    medians.insert(0, "pop_size", pop_size.reindex(medians.index))
+    medians.to_csv(os.path.join(OUT, "median_per_population.csv"), sep=out_sep, decimal=out_decimal)
+
+    # --- Heatmap with each channel scaled to 0-1
+    medians_norm = medians[heatmap_channels]
+    medians_norm = (medians_norm - medians_norm.min()) / (medians_norm.max() - medians_norm.min())
+    plt.figure(figsize=(0.6 * len(heatmap_channels) + 3, 0.25 * len(medians) + 3))
+    sns.heatmap(medians_norm, cmap="viridis", vmin=0, vmax=1, xticklabels=True, yticklabels=True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUT, "median_per_population_heatmap.png"), dpi=200)
+    plt.close()
+
+    # --- Clustermap of the same normalized values
+    cm = sns.clustermap(medians_norm, cmap="viridis", vmin=0, vmax=1, xticklabels=True, yticklabels=True,
+                        figsize=(0.6 * len(heatmap_channels) + 3, 0.25 * len(medians) + 3))
+    cm.savefig(os.path.join(OUT, "median_per_population_clustermap.png"), dpi=200)
+    plt.close(cm.fig)
 
 print("DONE")
 print("")
