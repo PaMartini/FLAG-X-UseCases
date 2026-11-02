@@ -29,7 +29,7 @@ from openTSNE import TSNE
 # --- select YAML file! ---
 
 # selected Parameters for the workflow are drawn from YAML files
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Tcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imstat.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_unsup_training')
@@ -217,7 +217,7 @@ _, x_som, _, _ = som_clf.transform(x_train)
 time_c = datetime.now()
 timesom = time_c - time_b
 
-# --- t-SNE
+# --- t-SNE (optional)
 if calcTSNE:
     print ('computing t-SNE...')
     tsne_model = TSNE(n_components=2, n_jobs=-1, verbose=True)
@@ -226,7 +226,7 @@ if calcTSNE:
 time_d = datetime.now()
 timeSNE = time_d - time_c
 
-# --- PARC clustering
+# --- PARC clustering (optional)
 parc_labels = np.empty(0, dtype=int)
 if calcPARC:
     import parc
@@ -258,6 +258,9 @@ if calcPARC:
     add_columns_names.append('PARC_labels')
     scale_columns.append('PARC_labels')
 
+if all('population' in adata.var_names for adata in fdm.anndata_list_):
+    scale_columns.append('population')
+
 # Export the training samples in one concatenated file, compensated raw data
 export_to_fcs(
     data_list=fdm.anndata_list_,  
@@ -276,16 +279,20 @@ with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a
     sample_sizes_by_sample = sample_sizes_df.set_index('sample')['n_events']
     for filename in training_files:
         if filename in sample_sizes_by_sample.index:
-            f.write(f'"{filename}": {sample_sizes_by_sample[filename]}\n')
+            f.write(f'"{filename}": {int(sample_sizes_by_sample[filename])}\n')
     for summary in ('std', 'mean', 'total'):
         if summary in sample_sizes_by_sample.index:
-            f.write(f'"{summary}": {sample_sizes_by_sample[summary]}\n')
+            f.write(f'"{summary}": {int(sample_sizes_by_sample[summary])}\n')
     f.write(f'"training channels": {trainchannels}\n')
     f.write(f'"large samples downsampled to": {size_per_sample}\n')
-    f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
-    f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
+    f.write(f'"trafo_arcsinh": {trafo_arcsinh}\n')
+    if trafo_arcsinh:
+        f.write(f'"arcsinh cofactor": {arcsinh_div}\n')
+    else:
+        f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
     f.write(f'"scale up FSSS": {multiply_FSSS}\n')
-    f.write(f'"FSSS upscale factor": {upscale_val_list}\n')
+    if multiply_FSSS:
+        f.write(f'"FSSS upscale factor": {upscale_val_list}\n')
     f.write(f'"calcTSNE": {calcTSNE}\n')    
     f.write(f'"calcPARC": {calcPARC}\n')
     f.write(f'"SOM_dim": {SOM_dim}\n')
