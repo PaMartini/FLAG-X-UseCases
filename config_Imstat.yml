@@ -18,14 +18,14 @@ save_path_inference: './results/inference'
 import_format_priority: ['fcs', 'lmd', 'csv'] # order: most to least preferred
 all_channels: []
 calc_heatmap: False # (during concatenation). heatmap_channels = trainchannels (see below)
-delete_channels: []
+delete_channels: ['-PC5.5', 'FL8-INT', 'SOM_1', 'SOM_2', 'TSNE_1', 'TSNE_2', 'FL4 INT'] # during concatenation
 save_as_csv: False
-csv_out_english: False
+csv_out_english: True
 apply_comp: True
 export_raw_fcs: False
 
 # -- settings for training and inference --
-size_per_sample: 500 # maximum events per file(s), not per single samples of already concatenated files
+size_per_sample: 500000 # maximum events per file(s), not per single samples of already concatenated files
 trainchannels: ['FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '14-APC700', '8-PB', '45-CO']
 # e.g. ['FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '14-APC700', 'FL8 INT', '8-PB', '45-CO']
 SOM_dim:

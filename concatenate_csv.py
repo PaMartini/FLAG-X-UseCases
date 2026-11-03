@@ -10,8 +10,8 @@
 # ...will be automatically detected and the event with the higher population integer will be removed
 # column 'sample_idx' is renamed from 'sample_id' if present, if not it will be created with default value 1
 # CSV files from input directory are concatenated and exported as CSV (english or german style).
-# an optional heatmap can be calculated 
-# Last modified: 09-30-2026
+# an optional heatmap and clustermap can be calculated 
+# Last modified: 11-03-2026
 
 import os
 import sys
@@ -31,8 +31,10 @@ with open("config_Tcell.yml", "r") as f:
 INPUT_DIR = config["path_concat"]
 OUT = config["save_path_concat"]
 CSV_out_english = config["csv_out_english"]
+delete_channels = config["delete_channels"]
 calc_heatmap = config["calc_heatmap"]
 heatmap_channels = config["trainchannels"]
+heatmap_channel_seq = config.get("heatmap_channel_seq", heatmap_channels)
 channel_name_to_cutoff = config["channel_name_to_cutoff"]
 
 ### Import CSV-s
@@ -70,6 +72,11 @@ for file in sorted(path_list):
         df = pd.read_csv(file, decimal=".", sep=",", low_memory=False)
     else:
         df = pd.read_csv(file, decimal=",", sep=";", low_memory=False)
+
+    if "population" in df.columns:
+        df.rename(columns={"population": "pop_old"}, inplace=True)
+
+    df.drop(columns=delete_channels, errors="ignore", inplace=True)
 
     # make sure sample identifier column is available (necessary for supervised training)
     if "sample_idx" not in df.columns:
@@ -180,7 +187,8 @@ if calc_heatmap:
     plt.close()
 
     # --- Clustermap of the same normalized values
-    cm = sns.clustermap(medians_norm, cmap="viridis", vmin=0, vmax=1, xticklabels=True, yticklabels=True,
+    cm = sns.clustermap(medians_norm.loc[:, heatmap_channel_seq], cmap="viridis", vmin=0, vmax=1,
+                        xticklabels=True, yticklabels=True, row_cluster=True, col_cluster=False,
                         figsize=(0.6 * len(heatmap_channels) + 3, 0.25 * len(medians) + 3))
     cm.savefig(os.path.join(OUT, "median_per_population_clustermap.png"), dpi=200)
     plt.close(cm.fig)

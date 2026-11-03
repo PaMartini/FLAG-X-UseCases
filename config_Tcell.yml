@@ -20,6 +20,8 @@ all_channels: ['FSC-A', 'FSC-H', 'FSC-W', 'SSC-A', 'SSC-H', 'SSC-W', 'Ki67', '7A
  'CD56', 'CD25', 'CX3CR1', 'Granzyme B', 'CD28', 'CXCR4', 'CD127', 'CD45RA', 'CD27', 
  'CD4', 'CD8', 'CD3', 'TCRab', 'CCR9', 'Perforin', 'TIME', 'sample_idx', 'population']
 calc_heatmap: True # (during concatenation). heatmap_channels = trainchannels (see below)
+heatmap_channel_seq: ['FSC-A', 'SSC-A', '7AAD + CD14 + CD33', 'CD3', 'TCRab', 'CD56', 'CD8', 'CD4', 'CD25', 'CD127', 
+  'CD45RA', 'CD27', 'CD28', 'Perforin', 'Granzyme B', 'CX3CR1', 'CXCR4', 'CCR9', 'Ki67']
 delete_channels: []
 save_as_csv: False
 csv_out_english: False

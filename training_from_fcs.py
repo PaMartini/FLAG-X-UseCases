@@ -277,14 +277,15 @@ timetotal = datetime.now()-timestart
 with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a') as f:
     f.write(f'"training_files and cell numbers" {date_time_str} \n')
     sample_sizes_by_sample = sample_sizes_df.set_index('sample')['n_events']
-    for filename in training_files:
+    for sample_index, filename in enumerate(training_files, start=1):
         if filename in sample_sizes_by_sample.index:
-            f.write(f'"{filename}": {int(sample_sizes_by_sample[filename])}\n')
-    for summary in ('std', 'mean', 'total'):
-        if summary in sample_sizes_by_sample.index:
-            f.write(f'"{summary}": {int(sample_sizes_by_sample[summary])}\n')
-    f.write(f'"training channels": {trainchannels}\n')
+            f.write(
+                f'"sample": {sample_index}, '
+                f'"raw_events": {int(sample_sizes_by_sample[filename])}, '
+                f'"file": "{filename}", \n'
+            )
     f.write(f'"large samples downsampled to": {size_per_sample}\n')
+    f.write(f'"training channels": {trainchannels}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh}\n')
     if trafo_arcsinh:
         f.write(f'"arcsinh cofactor": {arcsinh_div}\n')
