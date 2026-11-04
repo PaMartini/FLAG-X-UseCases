@@ -44,7 +44,7 @@ arcsinh_div = config.get('arcsinh_div') # only applied if trafo_arcsinh is True
 channel_name_to_cutoff = config.get('channel_name_to_cutoff') # only applied if trafo_arcsinh is False
 multiply_FSSS = config.get('multiply_FSSS')
 upscale_val_list = config.get('upscale_val') # only applied if multiply_FSSS is True
-upscale_val = tuple(upscale_val_list)
+upscale_val = dict(upscale_val_list)
 compute_dim_red = config.get('compute_dim_red') 
 size_pop_1 = config.get('size_pop_1')  # number of events from population 1 to keep 
 size_pop_2 = config.get('size_pop_2')  # number of events from population 2 to keep
@@ -151,9 +151,9 @@ for i, fn in enumerate(inference_files):
     # Optional: 'FS INT' and 'SS INT' will be scaled up (makes only sense if the trafo is set to log, not arcsinh)
     if multiply_FSSS:
         if 'FS INT' in adata.var_names:
-            adata[:, 'FS INT'].X = (adata[:, 'FS INT'].X - upscale_val['FSsub']) * upscale_val['FSmult']
+            adata.X[:, adata.var_names.get_loc('FS INT')] = (adata[:, 'FS INT'].X.ravel() - upscale_val['FSsub']) * upscale_val['FSmult']
         if 'SS INT' in adata.var_names:
-            adata[:, 'SS INT'].X = (adata[:, 'SS INT'].X - upscale_val['SSsub']) * upscale_val['SSmult']
+            adata.X[:, adata.var_names.get_loc('SS INT')] = (adata[:, 'SS INT'].X.ravel() - upscale_val['SSsub']) * upscale_val['SSmult']
 
     # --- Downsample each sample to a target number of events
     # sample_wise_downsampling() replaces fdm.anndata_list_[0] with a new (downsampled) AnnData

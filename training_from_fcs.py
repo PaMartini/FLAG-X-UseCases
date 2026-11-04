@@ -1,13 +1,12 @@
 # SOM training (unsupervised) for samples without population annotation. Fast tSNE and automated clustering (PARC) added. 
 # shuffle version of the training data used for model fitting. Dimensionality reductions and FCS export based on unshuffled data
-# read FCS or csv files, perform training, dim reduction, export compensated FCS and save SOM model (optional)
+# read FCS, LMD or csv files, perform training, dim reduction, export compensated FCS and save SOM model (optional)
 # Before use, check number and names of channels is consistent across samples (use separate script)
 # if channels like sample_idx or population1 (from manual sampling) are included in the FCS or csv data 
   # they need to be scaled for export (if so, add to 'scale_columns')
 # Sample_id channel is added by script to tag the different files
 # config parameters drawn from yaml files, select and configure suitable file 
-# works with FCS and csv (english version) files, tested and running 2026-08-09
-# FS and SS upscale included 2026-09-21
+# works with FCS, LMD and csv (english version) files, tested and running 2026-11-04
 
 import os
 import re
@@ -22,6 +21,7 @@ date_time_str = timestart.strftime("%Y-%m-%d_%Hh%M")
 
 # import pickle
 from flagx.io import FlowDataManager, export_to_fcs
+from import_lmd_stubb import add_pns_to_fcs30
 from flagx.gating import SOMClassifier
 # from flagx.dimred import UMAP
 from openTSNE import TSNE
@@ -45,7 +45,7 @@ arcsinh_div = config.get('arcsinh_div')
 channel_name_to_cutoff = config.get('channel_name_to_cutoff')
 multiply_FSSS = config.get('multiply_FSSS')
 upscale_val_list = config.get('upscale_val') # only applied if multiply_FSSS is True
-upscale_val = tuple(upscale_val_list)
+upscale_val = dict(upscale_val_list)
 calcTSNE = config.get('calcTSNE')
 calcPARC = config.get('calcPARC')
 
@@ -90,11 +90,11 @@ def natural_sort_key(filename):
         filename,
     )
 
-# Get list of flow cytometry files in the data directory (prefer .fcs files, fall back to .csv for compatibility)
+# Get list of flow cytometry files in the data directory (.fcs, .lmd or .csv; do not mix file types)
 training_files = sorted(
     (
         fn for fn in os.listdir(training_data_path)
-        if fn.lower().endswith(('.fcs', '.csv'))
+        if fn.lower().endswith(('.fcs', '.lmd', '.csv'))
     ),
     key=natural_sort_key,
 )
@@ -103,22 +103,31 @@ if not training_files:
     raise FileNotFoundError(f'No training files found in {training_data_path}')
 
 # --- Data loading and processing
-# Initialize the data manager
-fdm = FlowDataManager(
-    data_file_names=training_files,
-    data_file_type=None,  # Is inferred from the filename ending of the 1st file in the 'training_files' list
-    data_file_path=training_data_path,
-    save_path=save_path_data_handling,
-    verbosity=1
-    )
-    
-# Load data into memory
+is_lmd = all(fn.lower().endswith('.lmd') for fn in training_files)
+if not is_lmd and any(fn.lower().endswith('.lmd') for fn in training_files):
+    raise ValueError('LMD files cannot be mixed with other file types in the training directory')
+
 print ('loading data...')
-# Data samples are now stored not in a Pandas DataFrames, but in a list of AnnData object.
-# This list is an attribute of the FlowDataManager class and can be accessed via FlowDataManager.anndata_list_.
-# AnnData is a Python class similar to Pandas DataFrames but with more options and functions for data annotation.
-# see: https://anndata.readthedocs.io/en/stable/
-fdm.load_data_files_to_anndata()
+if is_lmd:
+    # Loads FCS3.0 part of LMD files and transfers PnS annotations from the FCS2.0 part
+    fdm = add_pns_to_fcs30(
+        data_path=training_data_path,
+        lmd_fns=training_files,
+        verbosity=1,
+        save_path=save_path_data_handling,
+    )
+else:
+    # Initialize the data manager
+    fdm = FlowDataManager(
+        data_file_names=training_files,
+        data_file_type=None,  # Is inferred from the filename ending of the 1st file in the 'training_files' list
+        data_file_path=training_data_path,
+        save_path=save_path_data_handling,
+        verbosity=1
+        )
+    # Data samples are stored in a list of AnnData objects (FlowDataManager.anndata_list_).
+    # see: https://anndata.readthedocs.io/en/stable/
+    fdm.load_data_files_to_anndata()
 
 # --- Apply spillover compensation if the FCS files contain a spillover matrix
 print('applying spillover compensation...')
@@ -152,9 +161,9 @@ else:
 if multiply_FSSS:
     for adata in fdm.anndata_list_:
         if 'FS INT' in adata.var_names:
-            adata[:, 'FS INT'].X = (adata[:, 'FS INT'].X - upscale_val['FSsub']) * upscale_val['FSmult']
+            adata.X[:, adata.var_names.get_loc('FS INT')] = (adata[:, 'FS INT'].X.ravel() - upscale_val['FSsub']) * upscale_val['FSmult']
         if 'SS INT' in adata.var_names:
-            adata[:, 'SS INT'].X = (adata[:, 'SS INT'].X - upscale_val['SSsub']) * upscale_val['SSmult']    
+            adata.X[:, adata.var_names.get_loc('SS INT')] = (adata[:, 'SS INT'].X.ravel() - upscale_val['SSsub']) * upscale_val['SSmult']    
 
 # --- Downsample each sample to a target number of events
 fdm.sample_wise_downsampling(data_set='all', target_num_events=size_per_sample)

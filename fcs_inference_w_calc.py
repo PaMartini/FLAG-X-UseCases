@@ -3,11 +3,10 @@
 # populations to analyze can be selected in config_Sysmex.yml 
 # exports fcs with population predictions and optional SOM and TSNE display. 
 # for mere caluclation of population statistics, set calcTSNE = False
-# runs with fcs or csv (english format) input files, not fcs and csv mixed 
+# runs with fcs, lmd or csv (english format) input files, not fcs and csv mixed 
 # check that preprocessing (trafo)and channels are identical to training samples
-# TSNE inference to trained TSNE model included was included in earlier version.
 # batch-wise processing of large number of files implemented, with user-defined maximum number of rows per batch.
-# tested and running 2026-08-20
+# tested and running 2026-11-04 (including lmd)
 
 print('loading scripts and data...')
 import os
@@ -21,13 +20,14 @@ timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 
 from flagx.io import FlowDataManager, export_to_fcs
+from import_lmd_stubb import add_pns_to_fcs30
 from flagx.gating import SOMClassifier, MLPClassifier
 from flagx.dimred import UMAP
 from openTSNE import TSNE
 import anndata as ad
 
 # --- selected Parameters from YAML files, select and configure suitable file, parameters identical to training!-------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Bcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imstat.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 trainchannels = config.get('trainchannels')
@@ -42,7 +42,9 @@ val_range = tuple(val_range_list)
 trafo_arcsinh = config.get('trafo_arcsinh')
 arcsinh_div = config.get('arcsinh_div')
 channel_name_to_cutoff = config.get('channel_name_to_cutoff')
-lin_trafo_FSSS = config.get('lin_trafo_FSSS')
+multiply_FSSS = config.get('multiply_FSSS')
+upscale_val_list = config.get('upscale_val') # only applied if multiply_FSSS is True
+upscale_val = dict(upscale_val_list)
 compute_TSNE = config.get('calcTSNE')
 calcchannels = config.get('calcchannels') # List of channels for which to calculate median intensities per population
 calc_populations = config.get('calc_populations')  # Optional list of predicted populations for which to compute channel medians
@@ -55,13 +57,17 @@ os.makedirs(save_path, exist_ok=True)
 # Define path to inference data
 inference_data_path = inference_data_path
 
-# Get list of flow cytometry files in the data directory (prefer .fcs files, fall back to .csv for compatibility)
+# Get list of flow cytometry files in the data directory (.fcs, .lmd or .csv; do not mix file types)
 inference_files = sorted([
     fn for fn in os.listdir(inference_data_path)
-    if fn.lower().endswith(('.fcs', '.csv'))
+    if fn.lower().endswith(('.fcs', '.lmd', '.csv'))
 ])
 if not inference_files:
     raise FileNotFoundError(f'No inference files found in {inference_data_path}')
+
+is_lmd = all(fn.lower().endswith('.lmd') for fn in inference_files)
+if not is_lmd and any(fn.lower().endswith('.lmd') for fn in inference_files):
+    raise ValueError('LMD files cannot be mixed with other file types in the inference directory')
 
 # --- Data loading and batching during actual FCS processing
 MAX_ROWS_PER_BATCH = max_rows_per_batch
@@ -83,7 +89,10 @@ def get_batch_row_count(batch_file_list):
         data_file_path=inference_data_path,
         verbosity=0,
     )
-    temp_fdm.load_data_files_to_anndata()
+    if is_lmd:
+        temp_fdm.load_data_files_to_anndata(fcs_version_lmd='3.0')
+    else:
+        temp_fdm.load_data_files_to_anndata()
     row_count = sum(adata.n_obs for adata in temp_fdm.anndata_list_)
     del temp_fdm
     import gc
@@ -116,14 +125,17 @@ def process_batch(batch_file_list, batch_number):
     print(f'BATCH {batch_number}: Processing {len(batch_file_list)} file(s)')
     print(f'{"="*70}\n')
 
-    fdm = FlowDataManager(
-        data_file_names=batch_file_list,
-        data_file_type=None,
-        data_file_path=inference_data_path,
-        verbosity=1,
-    )
-
-    fdm.load_data_files_to_anndata()
+    if is_lmd:
+        # Loads FCS3.0 part of LMD files and transfers PnS annotations from the FCS2.0 part
+        fdm = add_pns_to_fcs30(data_path=inference_data_path, lmd_fns=batch_file_list, verbosity=1)
+    else:
+        fdm = FlowDataManager(
+            data_file_names=batch_file_list,
+            data_file_type=None,
+            data_file_path=inference_data_path,
+            verbosity=1,
+        )
+        fdm.load_data_files_to_anndata()
 
     print('applying spillover compensation...')
     try:
@@ -142,12 +154,14 @@ def process_batch(batch_file_list, batch_number):
             flavour='log10_w_custom_cutoffs', save_raw_to_layer='no_trafo', **preprocessing_kwargs
         )
 
-    if lin_trafo_FSSS:
-        for adata in fdm.anndata_list_:
-            if 'FS INT' in adata.var_names:
-                adata[:, 'FS INT'].X = adata[:, 'FS INT'].X / 300000
-            if 'SS INT' in adata.var_names:
-                adata[:, 'SS INT'].X = adata[:, 'SS INT'].X / 300000
+    adata = fdm.anndata_list_[0]
+    
+    # Optional: 'FS INT' and 'SS INT' will be scaled up (makes only sense if the trafo is set to log, not arcsinh)
+    if multiply_FSSS:
+        if 'FS INT' in adata.var_names:
+            adata.X[:, adata.var_names.get_loc('FS INT')] = (adata[:, 'FS INT'].X.ravel() - upscale_val['FSsub']) * upscale_val['FSmult']
+        if 'SS INT' in adata.var_names:
+            adata.X[:, adata.var_names.get_loc('SS INT')] = (adata[:, 'SS INT'].X.ravel() - upscale_val['SSsub']) * upscale_val['SSmult']
 
     channels = trainchannels
     data_matrices = [adata[:, channels].X for adata in fdm.anndata_list_]
@@ -323,9 +337,14 @@ with open(os.path.join(save_path, f'fcs_inference_{date_time_str}.txt'), 'a') as
     f.write(f'"mlp classifier file": {mlp_model_file}\n')
     f.write(f'"processed in" {batch_number} "batches": \n')
     f.write(f'"val_range": {val_range}\n')
-    f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
-    f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
-    f.write(f'"lin_trafo_FSSS": {lin_trafo_FSSS}\n')
+    f.write(f'"trafo_arcsinh": {trafo_arcsinh}\n')
+    if trafo_arcsinh:
+        f.write(f'"arcsinh cofactor": {arcsinh_div}\n')
+    else:
+        f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
+        f.write(f'"scale up FSSS": {multiply_FSSS}\n')
+    if multiply_FSSS:
+        f.write(f'"FSSS upscale factor": {upscale_val_list}\n')
     f.write (f'"dimreduction for fcs output generated-SOM": {compute_SOM} "TSNE": {compute_TSNE}\n')
     f.write(f'"population statistics provided in file df_calc_results_{date_time_str}.csv"\n')
     f.write(f'"events per population (as defined by MLP) for all populations and samples": \n')
