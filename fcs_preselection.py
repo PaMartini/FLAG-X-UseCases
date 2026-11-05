@@ -20,6 +20,7 @@ timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 
 from flagx.io import FlowDataManager, export_to_fcs
+from import_lmd_stubb import add_pns_to_fcs30
 from flagx.gating import SOMClassifier, MLPClassifier
 
 import anndata as ad
@@ -27,7 +28,7 @@ import anndata as ad
 # --- select YAML file! ---
 
 # configure suitable file, parameters identical to training!
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Tcell.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imstat.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_preselect')
@@ -61,13 +62,17 @@ if compute_dim_red:
 # Define path to inference data
 inference_data_path = data_path
 
-# Get list of flow cytometry files in the data directory (prefer .fcs files, fall back to .csv for compatibility)
+# Get list of flow cytometry files in the data directory (.fcs, .lmd or .csv; do not mix file types)
 inference_files = sorted([
     fn for fn in os.listdir(inference_data_path)
-    if fn.lower().endswith(('.fcs', '.csv'))
+    if fn.lower().endswith(('.fcs', '.lmd', '.csv'))
 ])
 if not inference_files:
     raise FileNotFoundError(f'No inference files found in {inference_data_path}')
+
+is_lmd = all(fn.lower().endswith('.lmd') for fn in inference_files)
+if not is_lmd and any(fn.lower().endswith('.lmd') for fn in inference_files):
+    raise ValueError('LMD files cannot be mixed with other file types in the input directory')
 
 # Define channels that were used for model training
 channels = trainchannels
@@ -112,13 +117,17 @@ for i, fn in enumerate(inference_files):
     print(f'--- processing file {i + 1}/{len(inference_files)}: {sample_name} ---')
 
     # --- Load a single file into memory
-    fdm = FlowDataManager(
-        data_file_names=[fn],
-        data_file_type=None,  # Is inferred from the filename ending
-        data_file_path=inference_data_path,
-        verbosity=1
-    )
-    fdm.load_data_files_to_anndata()
+    if is_lmd:
+        # Loads FCS3.0 part of the LMD file and transfers PnS annotations from the FCS2.0 part
+        fdm = add_pns_to_fcs30(data_path=inference_data_path, lmd_fns=[fn], verbosity=1)
+    else:
+        fdm = FlowDataManager(
+            data_file_names=[fn],
+            data_file_type=None,  # Is inferred from the filename ending
+            data_file_path=inference_data_path,
+            verbosity=1
+        )
+        fdm.load_data_files_to_anndata()
 
     # --- Apply spillover compensation if the FCS file contains a spillover matrix
     print('applying spillover compensation...')
@@ -275,9 +284,13 @@ with open(os.path.join(save_path, f'fcs_pop_preselect_{date_time_str}.txt'), 'a'
     f.write(f'"mlp classifier file": {mlp_model_file}\n')
     f.write(f'"val_range": {val_range}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh} "arcsinh cofactor": {arcsinh_div}\n')
-    f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
-    f.write(f'"multiply_FSSS": {multiply_FSSS}\n')
-    f.write(f'"FSSS upscale factor": {upscale_val_list}\n')
+    if trafo_arcsinh:
+        f.write(f'"arcsinh cofactor": {arcsinh_div}\n')
+    else:
+        f.write(f'"channel cutoff for log trafo": {channel_name_to_cutoff}\n')
+        f.write(f'"scale up FSSS": {multiply_FSSS}\n')
+    if multiply_FSSS:
+        f.write(f'"FSSS upscale factors": {upscale_val_list}\n')
     f.write (f'"dimreduction generated": {compute_dim_red}\n')
     f.write(f'"population statistics and downsampling factors provided in file df_calc_results_{date_time_str}.csv"\n')
     f.write(f'"one downsampled FCS output is exported per input file, processed and saved one file at a time (compensated data)" \n')
