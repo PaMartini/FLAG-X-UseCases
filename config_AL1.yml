@@ -18,7 +18,7 @@ save_path_inference: './results/inference'
 # (still to be listed)
 
 # -- settings for training and inference --
-size_per_sample: 500000 # maximum events per file(s), not per single samples of already concatenated files
+size_per_sample: 5000 # maximum events per file(s), not per single samples of already concatenated files
 trainchannels: ['FS INT', 'SS INT', '45-CO', '117-PC5.5', '34-ECD']
 # AL1: ['FS INT', 'SS INT', '15-FITC', '13-PE', '34-ECD', '117-PC5.5', '33-PC7', '2-APC', 
 #  '7-APC-AF700', 'HLADR-PB', '45-CO'] 'APC-AF750'
@@ -36,7 +36,7 @@ upscale_val: {'FSsub': 3.8, 'FSmult': 2.8, 'SSsub': 2.9, 'SSmult': 2.1}
 
 # -- only relevant for training --
 calcTSNE: True # (True is always recommended for unsupervised training)
-calcPARC: True # recommended if population selection is planned
+calcPARC: False # recommended if population selection is planned
 
 # -- settings only relevant for preselection script ---
 size_pop_1: 1000 # maximum size per population

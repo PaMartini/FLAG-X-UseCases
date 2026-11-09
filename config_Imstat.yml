@@ -49,7 +49,7 @@ calcPARC: True # recommended if population selection is planned
 size_pop_1: 15000 # maximum size per population
 size_pop_2: 4000
 size_pop_3: 0 # set to 0 if not needed
-include_predict_columns: False
+include_predict_columns: True
 compute_dim_red: False
 
 # -- settings only relevant for inference, irrelevant for training scripts --
