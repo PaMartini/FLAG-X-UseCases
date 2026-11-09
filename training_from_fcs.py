@@ -29,7 +29,7 @@ from openTSNE import TSNE
 # --- select YAML file! ---
 
 # selected Parameters for the workflow are drawn from YAML files
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imstat.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_AL1.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_unsup_training')

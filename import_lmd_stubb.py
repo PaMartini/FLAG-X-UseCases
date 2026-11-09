@@ -1,5 +1,40 @@
 # helper function to import lmd. Modified 2026-11-04
 
+import re
+
+import pandas as pd
+
+
+def lmd_channel_mapping(fcs2_var, fcs3_var):
+    """Map FCS3.0 PnN names to channel annotations from FCS2.0."""
+    def extract_pnn_id(pnn_name):
+        name = pnn_name.strip().upper()
+        match = re.match(r'^(FL\d+)', name)
+        if match:
+            return match.group(1)
+        if name.startswith('TIME'):
+            return 'TIME'
+        match = re.match(r'^(FS|SS)(?:[- ]?(INT|PEAK|TOF|A|H|W))?', name)
+        if match:
+            suffix = {None: 'INT', 'A': 'INT', 'H': 'PEAK', 'W': 'TOF'}.get(match.group(2), match.group(2))
+            return f'{match.group(1)} {suffix}'
+        return None
+
+    pnn_id_to_pns = {}
+    for _, row in fcs2_var.iterrows():
+        pnn_id = extract_pnn_id(row['PnN'])
+        pns = row['PnS']
+        if pnn_id is None:
+            continue
+        if pd.isna(pns) or str(pns).strip() in ('', str(row['PnN']).strip()):
+            pns = re.sub(r'\s+(LIN|LOG)$', '', row['PnN'].strip(), flags=re.IGNORECASE)
+        pnn_id_to_pns[pnn_id] = pns
+
+    return {
+        pnn: pnn_id_to_pns.get(extract_pnn_id(pnn), pnn)
+        for pnn in fcs3_var['PnN']
+    }
+
 def add_pns_to_fcs30(data_path, lmd_fns, verbosity=1, save_path=None):
     """
     LMD File PnS Annotation Transfer Script
@@ -47,8 +82,6 @@ def add_pns_to_fcs30(data_path, lmd_fns, verbosity=1, save_path=None):
 
     import gc
     import warnings
-    import pandas as pd
-    import re
     from flagx.io import FlowDataManager
 
     # --- Load FCS3.0 compliant part of LMD files
@@ -72,26 +105,6 @@ def add_pns_to_fcs30(data_path, lmd_fns, verbosity=1, save_path=None):
     fdm_helper.load_data_files_to_anndata(fcs_version_lmd='2.0')
 
 
-    # --- Implement helper function to extract identifier of PnN channel name based on its first characters
-    def extract_pnn_id(pnn_name: str) -> str | None:
-        """Extract FL<n>, FS INT/PEAK/TOF, SS INT/PEAK/TOF, or TIME identifier from a FCS2.0 or FCS3.0 channel name."""
-        name = pnn_name.strip().upper()
-        m = re.match(r'^(FL\d+)', name)
-        if m:
-            return m.group(1)
-        if name.startswith('TIME'):
-            return 'TIME'
-        m = re.match(r'^(FS|SS)(?:[- ]?(INT|PEAK|TOF|A|H|W))?', name)
-        if m:
-            suffix = {None: 'INT', 'A': 'INT', 'H': 'PEAK', 'W': 'TOF'}.get(m.group(2), m.group(2))
-            return f'{m.group(1)} {suffix}'
-        return None
-
-    def strip_scale(name: str) -> str:
-        """Remove trailing ' LIN'/' LOG' scale suffix, e.g. 'FS INT LIN' -> 'FS INT'."""
-        return re.sub(r'\s+(LIN|LOG)$', '', name.strip(), flags=re.IGNORECASE)
-
-
     # --- Extract PnS annotations from FCS2.0 and add to FCS3.0
 
     # Iterate over FCS3.0 samples/AnnData objects
@@ -109,23 +122,7 @@ def add_pns_to_fcs30(data_path, lmd_fns, verbosity=1, save_path=None):
             if not 'PnS' in bdata.var.columns:
                 continue
 
-            # Build mapper: channel identifier -> PnS (from FCS2.0 PnN column)
-            # Channels without a marker name keep their PnN without scale suffix (e.g. 'FS INT', 'FL4 INT')
-            pnn_id_to_pns = {}
-            for _, row in bdata.var.iterrows():
-                pnn_id = extract_pnn_id(row['PnN'])
-                pns_fcs2 = row['PnS']
-                if pnn_id is None:
-                    continue
-                if pd.isna(pns_fcs2) or str(pns_fcs2).strip() in ('', str(row['PnN']).strip()):
-                    pns_fcs2 = strip_scale(row['PnN'])
-                pnn_id_to_pns[pnn_id] = pns_fcs2
-
-            # Map FCS3.0 PnN -> PnS using the extracted identifiers
-            pnn_fcs3_to_pns = {}
-            for _, row in adata.var.iterrows():
-                pnn = row['PnN']
-                pnn_fcs3_to_pns[pnn] = pnn_id_to_pns.get(extract_pnn_id(pnn_name=pnn), pnn)
+            pnn_fcs3_to_pns = lmd_channel_mapping(bdata.var, adata.var)
 
             # Spillover labels are decoded positionally by the loader, so map old var names -> PnS by position
             old_to_pns = dict(zip(adata.var_names, adata.var['PnN'].map(pnn_fcs3_to_pns)))
@@ -137,8 +134,8 @@ def add_pns_to_fcs30(data_path, lmd_fns, verbosity=1, save_path=None):
             adata.var.set_index('PnS', inplace=True, drop=False)
 
             # Reindex spillover matrix if present
-            if 'spill' in adata.uns['meta'].keys():
-                spill_mat = adata.uns['meta']['spill']
+            spill_mat = adata.uns['meta'].get('spill')
+            if spill_mat is not None:
                 spill_mat.index = spill_mat.index.map(lambda x: old_to_pns.get(x, x))
                 spill_mat.columns = spill_mat.columns.map(lambda x: old_to_pns.get(x, x))
                 adata.uns['meta']['spill'] = spill_mat
@@ -161,8 +158,6 @@ if __name__ == '__main__':
     )
 
     print('done')
-
-
 
 
 

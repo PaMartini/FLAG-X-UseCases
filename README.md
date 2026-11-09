@@ -13,7 +13,7 @@ The files used for training and inference must contain the same channels and mus
 
 ### Data Verification and Preparation
 
-**check_input** helps verify which channels are present in the files and whether they match across all files (script currently only available for CSV files).
+**check_input** helps verify which channels are present in the files and whether they match across all files.
 
 **csv_format** Assigns the same channel names to all files. If necessary, deletes individual channels that are not present in all files.
 
@@ -25,19 +25,20 @@ The files used for training and inference must contain the same channels and mus
 
 For the training, compile datasets that contain all expected cell types ("populations") at least once in sufficient cell numbers. Not every sample needs to contain every cell type.
 
-**training_from_fcs** Script runs with fcs and csv. Applies downsampling if needed, concatenates the datasets, performs dimensionality reduction with SOM and TSNE, and performs automatic clustering using PARC. The raw data is exported as an FCS file along with the metadata (SOM map, TSNE map, PARC labels) thus calculated. 
+For the suggested workflow, two training runs are performed, one unsupervised run to concatenate files and perform dimensionality reduction to support gating, one unsupervised run to train the models for subsequent inference of new files.
 
-The FCS file contining concatenated data from several samples can then be gated using flow cytometry software (we use Kaluza for the ease of color coding), with the calculated data (SOM, TSNE, PARC) facilitating the definition of the cell populations. Of course definition of cell populations in raw training files one by one is also possible.
+**training_from_fcs** Script runs with fcs, lmd and csv. Applies downsampling if needed, concatenates the datasets, performs dimensionality reduction with SOM and TSNE, and performs automatic clustering using PARC. The raw data is exported as an FCS file along with the metadata (SOM map, TSNE map, PARC labels) thus calculated. 
+
+The FCS file contining concatenated data from several samples can then be gated using flow cytometry software (we use Kaluza for the ease of color coding), with the calculated data (SOM, TSNE, PARC) facilitating the definition of the cell populations. Of course definition of cell populations in raw training files one by one instead of concatenated files is also possible.
 
 Export data from cell populations of interest population-wise (one population per exported csv). Alternatively, if your software offers this option, export data with a column indicating the cell populations as 1, 2, 3...
 
-**concatenate_csv** concatenates population-specific csv into one large csv with a column indicating the cell populations. Naming conventions are given in the script.
+**concatenate_csv** concatenates population-specific csv into one large csv with a column indicating the cell populations. Naming conventions are given in the script. Optionally, a heat map of marker expression in the different populations ist caluclated.
 
 **training_labelled_csv** generates a SOM model and an MLP model on the compound csv containing the population annotations. An FCS is also provided for control purposes.
 
 ### Inference
 
 **fcs_inference** calculates the assignment of cells in new files to the training populations based on the models generated above. The population statistics (cell numbers and (optional) fluorescence intensities) are exported as a CSV table with one row for each file. The MLP model is routinely used for this purpose. An FCS file, which can be used to verify the population assignments via color labeling, is also exported.
-
 
 
