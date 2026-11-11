@@ -29,6 +29,8 @@ For the suggested workflow, two training runs are performed, one unsupervised ru
 
 **training_from_fcs** Script runs with fcs, lmd and csv. Applies downsampling if needed, concatenates the datasets, performs dimensionality reduction with SOM and TSNE, and performs automatic clustering using PARC. The raw data is exported as an FCS file along with the metadata (SOM map, TSNE map, PARC labels) thus calculated. 
 
+After loading and compensation, for the purpose of harmonization, `training_from_fcs` removes channels named in `delete_channels` from each file (names not present in a file are ignored). When `harmonize_channels` is true, the remaining channels are renamed positionally using `all_channels`: every file must have the same number of remaining channels, in the same physical order, and `all_channels` must contain unique names. 
+
 The FCS file contining concatenated data from several samples can then be gated using flow cytometry software (we use Kaluza for the ease of color coding), with the calculated data (SOM, TSNE, PARC) facilitating the definition of the cell populations. Of course definition of cell populations in raw training files one by one instead of concatenated files is also possible.
 
 Export data from cell populations of interest population-wise (one population per exported csv). Alternatively, if your software offers this option, export data with a column indicating the cell populations as 1, 2, 3...
@@ -40,5 +42,3 @@ Export data from cell populations of interest population-wise (one population pe
 ### Inference
 
 **fcs_inference** calculates the assignment of cells in new files to the training populations based on the models generated above. The population statistics (cell numbers and (optional) fluorescence intensities) are exported as a CSV table with one row for each file. The MLP model is routinely used for this purpose. An FCS file, which can be used to verify the population assignments via color labeling, is also exported.
-
-

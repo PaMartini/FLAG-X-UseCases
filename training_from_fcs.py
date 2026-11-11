@@ -6,7 +6,9 @@
   # they need to be scaled for export (if so, add to 'scale_columns')
 # Sample_id channel is added by script to tag the different files
 # config parameters drawn from yaml files, select and configure suitable file 
-# works with FCS, LMD and csv (english version) files, tested and running 2026-11-04
+# works with FCS, LMD and csv (english version) files
+# differences in channel names across files are now handled by the channel_preprocessing module
+# tested and running 2026-11-11
 
 import os
 import re
@@ -21,6 +23,7 @@ date_time_str = timestart.strftime("%Y-%m-%d_%Hh%M")
 
 # import pickle
 from flagx.io import FlowDataManager, export_to_fcs
+from channel_harmonize_module import prepare_channels
 from import_lmd_stubb import add_pns_to_fcs30
 from flagx.gating import SOMClassifier
 # from flagx.dimred import UMAP
@@ -29,11 +32,14 @@ from openTSNE import TSNE
 # --- select YAML file! ---
 
 # selected Parameters for the workflow are drawn from YAML files
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_AL1.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imst_rout.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 save_path = config.get('save_path_unsup_training')
 train_path = config.get('path_unsup_training')
+delete_channels = config.get('delete_channels')
+harmonize_channels = config.get('harmonize_channels')
+all_channels = config.get('all_channels')
 trainchannels = config.get('trainchannels')
 size_per_sample = config.get('size_per_sample')  # Maximum number of events per sample to be used for model training
 SOM_dim = tuple(config.get('SOM_dim'))  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
@@ -137,6 +143,15 @@ try:
         print(fdm.compensation_log_.to_string(index=False))
 except Exception as e:
     print(f'compensation step failed for one or more files: {e}')
+
+original_channels_by_file = {
+    adata.uns['filename']: list(adata.var_names) for adata in fdm.anndata_list_
+}
+
+# Keep the original channels available for compensation before selecting and renaming them.
+fdm.anndata_list_ = prepare_channels(
+    fdm.anndata_list_, delete_channels, harmonize_channels, all_channels
+)
 
 # --- Check the number of events per sample
 # Create a dataframe with the columns sample and n_events, this df is an attribute of the FDM instance
@@ -286,6 +301,12 @@ timetotal = datetime.now()-timestart
 with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a') as f:
     f.write(f'"training_files and cell numbers" {date_time_str} \n')
     sample_sizes_by_sample = sample_sizes_df.set_index('sample')['n_events']
+    original_channel_names = {
+        channel for channels in original_channels_by_file.values() for channel in channels
+    }
+    deleted_columns = list(dict.fromkeys(
+        name for name in (delete_channels or []) if name in original_channel_names
+    ))
     for sample_index, filename in enumerate(training_files, start=1):
         if filename in sample_sizes_by_sample.index:
             f.write(
@@ -293,6 +314,12 @@ with open(os.path.join(save_path, f'fcs_unsup_training_{date_time_str}.txt'), 'a
                 f'"raw_events": {int(sample_sizes_by_sample[filename])}, '
                 f'"file": "{filename}", \n'
             )
+            original_channels = original_channels_by_file[filename]
+            if harmonize_channels:
+                f.write(f'"original channels": {original_channels}\n')
+    f.write(f'"deleted_channels": {deleted_columns if deleted_columns else "none"}\n')
+    if harmonize_channels:
+        f.write(f'"harmonized channels": {all_channels}\n')
     f.write(f'"large samples downsampled to": {size_per_sample}\n')
     f.write(f'"training channels": {trainchannels}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh}\n')
