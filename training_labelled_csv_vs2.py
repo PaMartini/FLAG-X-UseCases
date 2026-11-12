@@ -5,6 +5,7 @@
 # expects column 'population' which is used as label for supervised training.
 # csv files are concatenated and tagged in a new column 'sample_id' by the script
 # expects column 'sample_idx' which is used to identify samples in the data matrix concatenated beforehand.
+# CSV format is detected per file: English (comma/decimal point) or German (semicolon/decimal comma).
 # before run: Check number and names of channels is consistent across samples (use separate script if needed)
 # provide parameters in yaml file. tested and running 2026-08-21
 
@@ -23,10 +24,11 @@ date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 from flagx.io import FlowDataManager, export_to_fcs
 from flagx.gating import SOMClassifier, MLPClassifier
 from openTSNE import TSNE
+from check_input import csv_format
 
 # --- Define path to YAML!
 # --- selected Parameters for the workflow are drawn from YAML files -------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imstat.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imst_rout.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
 training_data_path = config.get('path_sup_training')  # Path to the directory where the training data is stored
@@ -56,15 +58,21 @@ training_data_path = training_data_path  # Path to the directory where the train
 
 # Get list of files in the data directory (only include ones ending with .csv)
 training_files = sorted([fn for fn in os.listdir(training_data_path) if fn.endswith('.csv')])
+if not training_files:
+    raise FileNotFoundError(f'No training CSV files found in {training_data_path}')
 
-# Load the training files into pandas dataframes
-training_data_dfs = [pd.read_csv(os.path.join(training_data_path, fn)) for fn in training_files]
+# Detect the format independently for each training file.
+csv_formats = [csv_format(os.path.join(training_data_path, fn)) for fn in training_files]
+training_data_dfs = [
+    pd.read_csv(os.path.join(training_data_path, fn), **csv_kwargs)
+    for fn, csv_kwargs in zip(training_files, csv_formats)
+]
 
 # --- Data loading and processing
 # Initialize the data manager
 fdm = FlowDataManager(
     data_file_names=training_files,
-    data_file_type=None,  # Is inferred from the filename ending of the 1st file in the 'training_files' list
+    data_file_type='csv',
     data_file_path=training_data_path,
     save_path=save_path_data_handling,
     verbosity=1
@@ -76,7 +84,20 @@ print ('loading data...')
 # This list is an attribute of the FlowDataManager class and can be accessed via FlowDataManager.anndata_list_.
 # AnnData is a Python class similar to Pandas DataFrames but with more options and functions for data annotation.
 # see: https://anndata.readthedocs.io/en/stable/
-fdm.load_data_files_to_anndata()
+fdm.anndata_list_ = []
+fdm.invalid_files_ = []
+for fn, csv_kwargs in zip(training_files, csv_formats):
+    sample_fdm = FlowDataManager(
+        data_file_names=[fn],
+        data_file_type='csv',
+        data_file_path=training_data_path,
+        save_path=save_path_data_handling,
+        verbosity=1,
+    )
+    sample_fdm.load_data_files_to_anndata(read_csv_kwargs=csv_kwargs)
+    if sample_fdm.invalid_files_:
+        raise ValueError(f'Could not load training CSV file: {fn}')
+    fdm.anndata_list_.extend(sample_fdm.anndata_list_)
 
 # --- Check the number of events per sample
 # Create a dataframe with the columns sample and n_events, this df is an attribute of the FDM instance

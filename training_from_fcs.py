@@ -7,7 +7,7 @@
 # Sample_id channel is added by script to tag the different files
 # config parameters drawn from yaml files, select and configure suitable file 
 # works with FCS, LMD and csv (english version) files
-# differences in channel names across files are now handled by the channel_preprocessing module
+# differences in channel names across files are now handled by the channel_harmonize_module
 # tested and running 2026-11-11
 
 import os

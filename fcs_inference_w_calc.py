@@ -3,10 +3,11 @@
 # populations to analyze can be selected in config_Sysmex.yml 
 # exports fcs with population predictions and optional SOM and TSNE display. 
 # for mere caluclation of population statistics, set calcTSNE = False
+# consider downsampling, if only statistics are of interest
 # runs with fcs, lmd or csv (english format) input files, not fcs and csv mixed 
 # check that preprocessing (trafo)and channels are identical to training samples
 # batch-wise processing of large number of files implemented, with user-defined maximum number of rows per batch.
-# tested and running 2026-11-04 (including lmd)
+# downsampling enabled, tested and running 2026-11-1 (including lmd)
 
 print('loading scripts and data...')
 import os
@@ -20,6 +21,7 @@ timestart = datetime.now()
 date_time_str = timestart.strftime("%Y-%m-%d_%H-%M")
 
 from flagx.io import FlowDataManager, export_to_fcs
+from channel_harmonize_module import prepare_channels
 from import_lmd_stubb import add_pns_to_fcs30
 from flagx.gating import SOMClassifier, MLPClassifier
 from flagx.dimred import UMAP
@@ -27,13 +29,17 @@ from openTSNE import TSNE
 import anndata as ad
 
 # --- selected Parameters from YAML files, select and configure suitable file, parameters identical to training!-------
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imstat.yml')
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config_Imst_rout.yml')
 with open(config_path, 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f) or {}
-trainchannels = config.get('trainchannels')
 inference_data_path = config.get('path_inference')
 path_models = config.get('path_models')
 save_path_inference = config.get('save_path_inference')
+delete_channels = config.get('delete_channels')
+harmonize_channels = config.get('harmonize_channels')
+all_channels = config.get('all_channels')
+trainchannels = config.get('trainchannels')
+size_per_sample = config.get('size_per_sample')  # Maximum number of events per input file
 max_rows_per_batch = config.get('max_rows_per_batch')  # Maximum number of rows to read in at once for inference
 SOM_dim = tuple(config.get('SOM_dim'))  # Dimensions of the SOM grid. 10x10 for fast testing, 25x25 to 30x30 for better resolution
 SOM_epochs = config.get('SOM_epochs')  # Number of epochs for SOM training. default 100 for smaller grids, up to 1000
@@ -76,28 +82,8 @@ results_outfile_joint = os.path.join(save_path, f'df_calc_results_{date_time_str
 # Initialize timing variables
 timeload = None
 timepredict = None
-
-
-def get_batch_row_count(batch_file_list):
-    """Load a candidate batch with FlowDataManager to determine its total row count."""
-    if not batch_file_list:
-        return 0
-
-    temp_fdm = FlowDataManager(
-        data_file_names=batch_file_list,
-        data_file_type=None,
-        data_file_path=inference_data_path,
-        verbosity=0,
-    )
-    if is_lmd:
-        temp_fdm.load_data_files_to_anndata(fcs_version_lmd='3.0')
-    else:
-        temp_fdm.load_data_files_to_anndata()
-    row_count = sum(adata.n_obs for adata in temp_fdm.anndata_list_)
-    del temp_fdm
-    import gc
-    gc.collect()
-    return row_count
+original_channels_by_file = {}
+original_rows_by_file = {}
 
 
 def load_model_by_prefix(model_class, prefix, model_dir):
@@ -120,22 +106,11 @@ time_b = datetime.now()
 timeload = time_b - timestart
 
 
-def process_batch(batch_file_list, batch_number):
+def process_batch(fdm, batch_number):
+    batch_file_list = [adata.uns['filename'] for adata in fdm.anndata_list_]
     print(f'\n{"="*70}')
     print(f'BATCH {batch_number}: Processing {len(batch_file_list)} file(s)')
     print(f'{"="*70}\n')
-
-    if is_lmd:
-        # Loads FCS3.0 part of LMD files and transfers PnS annotations from the FCS2.0 part
-        fdm = add_pns_to_fcs30(data_path=inference_data_path, lmd_fns=batch_file_list, verbosity=1)
-    else:
-        fdm = FlowDataManager(
-            data_file_names=batch_file_list,
-            data_file_type=None,
-            data_file_path=inference_data_path,
-            verbosity=1,
-        )
-        fdm.load_data_files_to_anndata()
 
     print('applying spillover compensation...')
     try:
@@ -144,6 +119,13 @@ def process_batch(batch_file_list, batch_number):
             print(fdm.compensation_log_.to_string(index=False))
     except Exception as e:
         print(f'compensation step failed for one or more files: {e}')
+
+    original_channels_by_file.update({
+        adata.uns['filename']: list(adata.var_names) for adata in fdm.anndata_list_
+    })
+    fdm.anndata_list_ = prepare_channels(
+        fdm.anndata_list_, delete_channels, harmonize_channels, all_channels
+    )
 
     if trafo_arcsinh:
         preprocessing_kwargs = {'cofactor': arcsinh_div}
@@ -297,29 +279,47 @@ def process_batch(batch_file_list, batch_number):
     gc.collect()
 
 
-# Build batches dynamically while loading FCS files in FlowDataManager, so no pre-processing to .h5ad is required.
+# Load and downsample each file once, before batching and subsequent calculations.
 # Rule: when a file would exceed the limit, that file is still processed in the current batch,
 # and the following file starts a fresh batch.
 batch_number = 0
-current_batch_files = []
+batch_fdm = None
+batch_rows = 0
+input_type = os.path.splitext(inference_files[0])[1][1:].lower()
 
 for fn in inference_files:
-    if current_batch_files:
-        candidate_batch = current_batch_files + [fn]
-        candidate_row_count = get_batch_row_count(candidate_batch)
-        if candidate_row_count > MAX_ROWS_PER_BATCH:
-            batch_number += 1
-            print(f'Batch limit reached ({MAX_ROWS_PER_BATCH} rows); processing the current file with this batch and starting a fresh batch for the next file.')
-            process_batch(candidate_batch, batch_number)
-            current_batch_files = []
-            continue
+    if is_lmd:
+        file_fdm = add_pns_to_fcs30(data_path=inference_data_path, lmd_fns=[fn], verbosity=1)
+    else:
+        file_fdm = FlowDataManager(
+            data_file_names=[fn],
+            data_file_type=input_type,
+            data_file_path=inference_data_path,
+            verbosity=1,
+        )
+        file_fdm.load_data_files_to_anndata()
+    original_rows_by_file[fn] = sum(adata.n_obs for adata in file_fdm.anndata_list_)
+    if not file_fdm.anndata_list_:
+        continue
+    file_fdm.sample_wise_downsampling(data_set='all', target_num_events=size_per_sample)
+    batch_rows += sum(adata.n_obs for adata in file_fdm.anndata_list_)
+    if batch_fdm is None:
+        batch_fdm = file_fdm
+    else:
+        batch_fdm.anndata_list_.extend(file_fdm.anndata_list_)
+    del file_fdm
 
-    current_batch_files.append(fn)
+    if len(batch_fdm.anndata_list_) > 1 and batch_rows > MAX_ROWS_PER_BATCH:
+        batch_number += 1
+        print(f'Batch limit reached ({MAX_ROWS_PER_BATCH} rows); processing the current file with this batch and starting a fresh batch for the next file.')
+        process_batch(batch_fdm, batch_number)
+        batch_fdm = None
+        batch_rows = 0
 
 # Process remaining files after the loop
-if current_batch_files:
+if batch_fdm is not None:
     batch_number += 1
-    process_batch(current_batch_files, batch_number)
+    process_batch(batch_fdm, batch_number)
 
 print(f'\n{"="*70}')
 print(f'All batches processed. Population statistics saved to:')
@@ -329,13 +329,25 @@ print(f'{"="*70}\n')
 timetotal = datetime.now()-timestart
 
 with open(os.path.join(save_path, f'fcs_inference_{date_time_str}.txt'), 'a') as f:
-    f.write(f'"inference_files" {date_time_str}: \n')
+    f.write(f'"inference_files and size" {date_time_str}: \n')
     for items in inference_files:
-        f.write(items + "\n")
+        f.write(f'{items} ({original_rows_by_file.get(items, 0)} events)\n')
+        if harmonize_channels and items in original_channels_by_file:
+            f.write(f'"original channels": {original_channels_by_file[items]}\n')
+    original_channel_names = {
+        channel for channels in original_channels_by_file.values() for channel in channels
+    }
+    deleted_columns = list(dict.fromkeys(
+        name for name in (delete_channels or []) if name in original_channel_names
+    ))
+    f.write(f'"deleted_channels": {deleted_columns if deleted_columns else "none"}\n')
+    if harmonize_channels:
+        f.write(f'"harmonized channels": {all_channels}\n')
     f.write(f'"training channels": {trainchannels}\n')
     f.write(f'"som classifier file": {som_model_file}\n')
     f.write(f'"mlp classifier file": {mlp_model_file}\n')
     f.write(f'"processed in" {batch_number} "batches": \n')
+    f.write(f'"large samples downsampled to": {size_per_sample}\n')
     f.write(f'"val_range": {val_range}\n')
     f.write(f'"trafo_arcsinh": {trafo_arcsinh}\n')
     if trafo_arcsinh:

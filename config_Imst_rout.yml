@@ -18,6 +18,7 @@ save_path_inference: './results/inference'
 import_format_priority: ['fcs', 'lmd', 'csv'] # order: most to least preferred
 harmonize_channels: True
 all_channels: ['FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '-Cy5.5', '4-PC7', '19-APC', '-APC700', '-APC750', '8-PB', '45-KO', 'TIME']
+# e.g. ['FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '-Cy5.5', '4-PC7', '19-APC', '-APC700', '-APC750', '8-PB', '45-KO', 'TIME']
 calc_heatmap: False # (during concatenation). heatmap_channels = trainchannels (see below)
 delete_channels: ['FS PEAK'] 
 save_as_csv: False
@@ -26,25 +27,25 @@ apply_comp: True
 export_raw_fcs: False
 
 # -- settings for training and inference --
-size_per_sample: 10000 # maximum events per file(s), not per single samples of already concatenated files
-trainchannels: ['FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '-Cy5.5', '4-PC7', '19-APC', '8-PB', '45-KO']
-# e.g. ['FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '-Cy5.5', '4-PC7', '19-APC', '-APC700', '-APC750', '8-PB', '45-KO']
+size_per_sample: 20000 # maximum events per file(s), not per single samples of already concatenated files
+trainchannels: ['FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '8-PB', '45-KO']
+# e.g. ['FS INT', 'SS INT', '16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '8-PB', '45-KO']
 SOM_dim:
   - 25
   - 25
 SOM_epochs: 100
 val_range: [0, 1048576] # 262144 for BD, 1048576 for Coulter Navios
-trafo_arcsinh: True # if False set cut offs for log trafo
+trafo_arcsinh: False # if False set cut offs for log trafo
 arcsinh_div: 300  # 150 recommended for BD files, 300 for Navios
 channel_name_to_cutoff: {'FS INT': 100000, 'SS INT': 20000, '16-FITC': 250, '56-PE': 450, '3-ECD': 700, '4-PC7': 1200, '19-APC': 1700,
  '8-PB': 450, '45-KO': 500} # define if arcsinh = false
-multiply_FSSS: False # upscaling for FS and SS
+multiply_FSSS: True # upscaling for FS and SS
 upscale_val: {'FSsub': 3.8, 'FSmult': 2.8, 'SSsub': 2.9, 'SSmult': 2}
 # reasonable for Navios: {'FSsub': 3.8, 'FSmult': 2.8, 'SSsub': 2.9, 'SSmult': 2}
+calcTSNE: False # (True is always recommended for unsupervised training)
 
 # -- only relevant for training --
-calcTSNE: True # (True is always recommended for unsupervised training)
-calcPARC: True # recommended if population selection is planned
+calcPARC: False # recommended if population selection is planned
 
 # -- settings only relevant for preselection script ---
 size_pop_1: 15000 # maximum size per population
@@ -56,6 +57,6 @@ compute_dim_red: False
 # -- settings only relevant for inference, irrelevant for training scripts --
 max_rows_per_batch: 500000 # maximum number of lines to read in at once for inference. # 2 Mio is reasonable
 show_SOM: True # procedure is fast in inference
-calcchannels: ['56-PE'] # if fluorescence intensity per channel and population. population sizes are always calculated
-calc_populations: [1,2] # Optional list of MLP population labels for which to compute calcchannel medians.
+calcchannels: ['16-FITC', '56-PE', '3-ECD', '4-PC7', '19-APC', '8-PB', '45-KO'] # if fluorescence intensity per channel and population. population sizes are always calculated
+calc_populations: [1, 2, 3, 4, 6, 7] # Optional list of MLP population labels for which to compute calcchannel medians.
          # Set to null or omit to use all predicted populations.

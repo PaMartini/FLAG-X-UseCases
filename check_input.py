@@ -11,10 +11,10 @@ from datetime import datetime
 import pandas as pd
 
 # !! define input and output paths for checking files !!
-input_path = './data/training'
+input_path = './data/testing'
 output_path = './results'
 
-def csv_channels(path):
+def csv_format(path):
     # Inspect the header only, so decimal commas in data rows cannot affect detection.
     with open(path, encoding='utf-8-sig', newline='') as f:
         header = f.readline()
@@ -27,7 +27,11 @@ def csv_channels(path):
         raise ValueError(f'Cannot determine CSV delimiter from header in {path}')
     separator = ';' if len(semicolon_columns) > 1 else ','
     decimal = ',' if separator == ';' else '.'
-    return pd.read_csv(path, sep=separator, decimal=decimal, nrows=0).columns.tolist()
+    return {'sep': separator, 'decimal': decimal}
+
+
+def csv_channels(path):
+    return pd.read_csv(path, **csv_format(path), nrows=0).columns.tolist()
 
 def input_details(data_path, filename):
     extension = os.path.splitext(filename)[1].lower()
