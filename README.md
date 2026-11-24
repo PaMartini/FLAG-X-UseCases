@@ -19,6 +19,8 @@ FLAG-X is used for the automatic classification of cell populations in flow cyto
 
 **config_xxx.yml** These files should be used to define parameters for one training-inference task. Depending on the task, not all channels of the fcs files are used for training and inference.
 
+**preprocess_fcs** adds a 1-based `event_nr` before downsampling, applies spillover compensation when a matrix is present. Channel deletion and optional harmonization use the same config settings as training. Each input produces a `_compensated.fcs` output; when no spillover matrix is present, its values are unchanged. Set `export_uncompensated_fcs: true` to additionally export `_uncompensated.fcs` with the original values and spillover matrix, when available. Spillover channels cannot be deleted when requesting the uncompensated output. 'event_nr' may be useful downstream to list events in populations of interest.
+
 **fcs_preselection** is a modification of fcs_inference described below. A simple training and inference loop applying gating with only few markers can be used to enrich cells of interest by differential downsampling in large fcs files.
 
 ### Training

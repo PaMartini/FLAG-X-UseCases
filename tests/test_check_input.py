@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import warnings
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -110,6 +111,40 @@ class CheckInputTests(unittest.TestCase):
             loaded = add_pns_to_fcs30('/input', ['sample.LMD'], verbosity=0)
         self.assertEqual(loaded.anndata_list_[0].var_names.tolist(), ['CD3'])
         self.assertIsNone(loaded.anndata_list_[0].uns['meta']['spill'])
+
+    def test_lmd_missing_fcs3_pns_uses_fcs2_annotations_without_warning(self):
+        fcs3 = AnnData(
+            X=np.zeros((1, 1)), var=pd.DataFrame({'PnN': ['FL1-A']}),
+            uns={'filename': 'sample.LMD', 'meta': {'spill': None}},
+        )
+        fcs2 = AnnData(
+            X=np.zeros((1, 1)), var=pd.DataFrame({'PnN': ['FL1 INT LOG'], 'PnS': ['CD3']}),
+            uns={'filename': 'sample.LMD', 'meta': {'spill': None}},
+        )
+
+        def load_fcs3(**kwargs):
+            warnings.warn('PnS not found. Cannot reindex.')
+
+        manager3 = SimpleNamespace(anndata_list_=[fcs3], load_data_files_to_anndata=load_fcs3)
+        manager2 = SimpleNamespace(anndata_list_=[fcs2], load_data_files_to_anndata=lambda **kwargs: None)
+        with patch('flagx.io.FlowDataManager', side_effect=[manager3, manager2]), \
+                warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            loaded = add_pns_to_fcs30('/input', ['sample.LMD'])
+        self.assertEqual(loaded.anndata_list_[0].var_names.tolist(), ['CD3'])
+        self.assertFalse(any('PnS not found' in str(item.message) for item in caught))
+
+    def test_lmd_reports_pns_missing_from_both_sections(self):
+        def manager(pnn):
+            sample = AnnData(
+                X=np.zeros((1, 1)), var=pd.DataFrame({'PnN': [pnn]}),
+                uns={'filename': 'sample.LMD', 'meta': {'spill': None}},
+            )
+            return SimpleNamespace(anndata_list_=[sample], load_data_files_to_anndata=lambda **kwargs: None)
+
+        with patch('flagx.io.FlowDataManager', side_effect=[manager('FL1-A'), manager('FL1 INT LOG')]), \
+                self.assertWarnsRegex(UserWarning, 'absent in both LMD sections'):
+            add_pns_to_fcs30('/input', ['sample.LMD'])
 
     def test_summary_from_csv_files(self):
         with tempfile.TemporaryDirectory() as directory:

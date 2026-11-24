@@ -91,9 +91,10 @@ def add_pns_to_fcs30(data_path, lmd_fns, verbosity=1, save_path=None):
         save_path=save_path,
         verbosity=verbosity,
     )
-    # LMD spillover matrices are index-encoded; the loader resolves this itself but warns about it
+    # FCS3 may lack PnS; annotations are transferred from FCS2 below.
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', message='Spillover columns do not match PnN')
+        warnings.filterwarnings('ignore', message=r'^PnS not found\. Cannot reindex\.$')
         fdm.load_data_files_to_anndata(fcs_version_lmd='3.0')
 
     # --- Load FCS2.0 compliant part of LMD files
@@ -120,6 +121,8 @@ def add_pns_to_fcs30(data_path, lmd_fns, verbosity=1, save_path=None):
 
             # Check if PnS is present in FCS2.0
             if not 'PnS' in bdata.var.columns:
+                if verbosity >= 1 and 'PnS' not in adata.var.columns:
+                    warnings.warn(f"{fn}: PnS annotations are absent in both LMD sections; using PnN names.")
                 continue
 
             pnn_fcs3_to_pns = lmd_channel_mapping(bdata.var, adata.var)

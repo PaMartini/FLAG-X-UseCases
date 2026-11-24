@@ -11,7 +11,7 @@ from datetime import datetime
 import pandas as pd
 
 # !! define input and output paths for checking files !!
-input_path = './data/testing'
+input_path = './data/training'
 output_path = './results'
 
 def csv_format(path):
